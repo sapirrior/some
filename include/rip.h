@@ -36,6 +36,7 @@ typedef struct {
     /* ── Viewport ── */
     size_t top_line;        /* 0-indexed display line at top of screen      */
     int horiz_offset;       /* horizontal scroll offset (columns, chop mode) */
+    int max_line_width;     /* visual width of the longest display line     */
     int term_rows;
     int term_cols;
 

@@ -21,6 +21,7 @@ void rip_init_state(rip_state_t *state) {
     state->display_lines_capacity= 0;
     state->top_line              = 0;
     state->horiz_offset          = 0;
+    state->max_line_width        = 0;
     state->term_rows             = 0;
     state->term_cols             = 0;
     state->tty_fd                = -1;
@@ -259,6 +260,23 @@ void rip_reflow_all(rip_state_t *state) {
     if (has_filter) {
         regfree(&filter_re);
     }
+
+    /* Calculate the visual width of the longest display line */
+    int max_w = 0;
+    for (size_t i = 0; i < state->num_display_lines; i++) {
+        rip_line_t *d = &state->display_lines[i];
+        int vis_w = 0;
+        size_t off = 0;
+        while (off < d->len) {
+            unsigned int ch;
+            off += rip_decode_utf8(d->data + off, d->len - off, &ch);
+            vis_w += rip_char_width(ch, vis_w);
+        }
+        if (vis_w > max_w) {
+            max_w = vis_w;
+        }
+    }
+    state->max_line_width = max_w;
 
     rip_update_search_matches(state);
 }

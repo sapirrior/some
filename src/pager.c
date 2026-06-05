@@ -887,7 +887,14 @@ void rip_run(rip_state_t *state) {
             /* ── horizontal scroll (chop mode only) ── */
             case KEY_ARROW_RIGHT:
                 if (!state->wrap_enabled) {
+                    int ln_width = rip_get_gutter_width(state);
+                    int content_cols = state->term_cols - ln_width;
+                    if (content_cols < 1) content_cols = 1;
+                    int max_offset = state->max_line_width - content_cols;
+                    if (max_offset < 0) max_offset = 0;
+
                     state->horiz_offset += N * 4;
+                    if (state->horiz_offset > max_offset) state->horiz_offset = max_offset;
                 }
                 break;
             case KEY_ARROW_LEFT:
@@ -898,7 +905,14 @@ void rip_run(rip_state_t *state) {
                 break;
             case ')':
                 if (!state->wrap_enabled) {
+                    int ln_width = rip_get_gutter_width(state);
+                    int content_cols = state->term_cols - ln_width;
+                    if (content_cols < 1) content_cols = 1;
+                    int max_offset = state->max_line_width - content_cols;
+                    if (max_offset < 0) max_offset = 0;
+
                     state->horiz_offset += N * (state->term_cols / 2);
+                    if (state->horiz_offset > max_offset) state->horiz_offset = max_offset;
                 }
                 break;
             case '(':
