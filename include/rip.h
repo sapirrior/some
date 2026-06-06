@@ -77,7 +77,6 @@ typedef struct {
 
     /* ── Incremental loading state ── */
     int stdin_eof;
-    int stdin_nonblocking_set;
     int raw_last_has_newline;
 } rip_state_t;
 

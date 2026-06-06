@@ -107,7 +107,7 @@ static void render_status(rip_state_t *state) {
                byte_top, state->file_size, pct);
 
         if (bot >= state->num_display_lines && state->num_display_lines > 0) {
-            printf(" (END)");
+            printf(" \033[7m[END]\033[27m");
         }
 
         if (state->filter_pattern[0]) {
@@ -136,7 +136,7 @@ static void render_status(rip_state_t *state) {
         }
 
         if (bot >= state->num_display_lines && state->num_display_lines > 0) {
-            printf("(END)");
+            printf("\033[7m[END]\033[27m");
         } else {
             printf(":");
         }
@@ -393,6 +393,21 @@ static void do_search(rip_state_t *state, int forward, int count) {
     }
 }
 
+static int validate_regex(const char *pattern, int case_insensitive, char *err_buf, size_t err_buf_len) {
+    if (!pattern || !pattern[0]) return 0; /* empty regex is valid */
+    regex_t re;
+    int flags = REG_EXTENDED | REG_NOSUB | (case_insensitive ? REG_ICASE : 0);
+    int err = regcomp(&re, pattern, flags);
+    if (err != 0) {
+        if (err_buf && err_buf_len > 0) {
+            regerror(err, &re, err_buf, err_buf_len);
+        }
+        return -1;
+    }
+    regfree(&re);
+    return 0;
+}
+
 /* ─────────────────────────────────────────────────────────────────────────── *
  *  Search prompt                                                              *
  * ─────────────────────────────────────────────────────────────────────────── */
@@ -432,6 +447,11 @@ static void search_prompt(rip_state_t *state, int forward) {
     }
 
     if (len > 0) {
+        char err_msg[256];
+        if (validate_regex(buf, state->search_case_insensitive, err_msg, sizeof(err_msg)) != 0) {
+            snprintf(state->status_msg, sizeof(state->status_msg), "Invalid regex: %s", err_msg);
+            return;
+        }
         memcpy(state->search_pattern, buf, len + 1);
         state->search_dir = forward ? 1 : -1;
         rip_update_search_matches(state);
@@ -472,6 +492,11 @@ static void filter_prompt(rip_state_t *state) {
     }
 
     /* Update filter pattern and reflow */
+    char err_msg[256];
+    if (validate_regex(buf, state->search_case_insensitive, err_msg, sizeof(err_msg)) != 0) {
+        snprintf(state->status_msg, sizeof(state->status_msg), "Invalid regex: %s", err_msg);
+        return;
+    }
     memcpy(state->filter_pattern, buf, len + 1);
     rip_reflow_all(state);
     state->top_line = 0;
@@ -487,51 +512,73 @@ static void filter_prompt(rip_state_t *state) {
  *  Help screen                                                                *
  * ─────────────────────────────────────────────────────────────────────────── */
 static void show_help(rip_state_t *state) {
-    printf("\033[H\033[2J"); /* clear screen */
-    printf("\033[1mrip\033[0m — Read In Pager  (less++)\n\n");
+    rip_state_t help_state;
+    rip_init_state(&help_state);
 
-    printf("\033[1mNAVIGATION\033[0m\n");
-    printf("  j / ↓ / Enter    Scroll down 1 line\n");
-    printf("  k / ↑            Scroll up 1 line\n");
-    printf("  Space / f / PgDn Scroll down 1 page\n");
-    printf("  b / PgUp         Scroll up 1 page\n");
-    printf("  d                Scroll down half page\n");
-    printf("  u                Scroll up half page\n");
-    printf("  g / < / Home     Go to line N (default: top)\n");
-    printf("  G / > / End      Go to line N (default: bottom)\n");
-    printf("  Np / N%%          Go to N%% into file\n");
-    printf("  ← / →            Scroll 4 columns left/right\n");
-    printf("  ( / )            Scroll half-page left/right\n\n");
+    help_state.tty_fd = state->tty_fd;
+    help_state.orig_termios = state->orig_termios;
+    help_state.raw_mode_enabled = state->raw_mode_enabled;
+    help_state.term_rows = state->term_rows;
+    help_state.term_cols = state->term_cols;
 
-    printf("\033[1mSEARCH / FILTER\033[0m\n");
-    printf("  /pattern         Search forward (prefix N repeats)\n");
-    printf("  ?pattern         Search backward (prefix N repeats)\n");
-    printf("  &pattern         Filter lines by regex pattern (Enter to clear)\n");
-    printf("  n                Next match (prefix N repeats)\n");
-    printf("  N                Previous match (prefix N repeats)\n");
-    printf("  i                Toggle case-insensitive\n");
-    printf("  H                Toggle search highlights\n");
-    printf("  ESC              Clear search pattern & highlights\n\n");
+    help_state.filename = "Help Screen";
+    help_state.is_stdin = 0;
 
-    printf("\033[1mDISPLAY\033[0m\n");
-    printf("  w                Toggle word wrap / chop\n");
-    printf("  L                Toggle line numbers\n");
-    printf("  M                Toggle verbose status bar\n");
-    printf("  =                Show detailed file info\n");
-    printf("  r                Repaint screen\n");
-    printf("  R                Reload file from disk\n\n");
+    const char *help_lines[] = {
+        "rip — Read In Pager  (less++) Help",
+        "",
+        "NAVIGATION",
+        "  j / ↓ / Enter    Scroll down 1 line (prefix N repeats)",
+        "  k / ↑            Scroll up 1 line (prefix N repeats)",
+        "  Space / f / PgDn Scroll down 1 page (prefix N repeats)",
+        "  b / PgUp         Scroll up 1 page (prefix N repeats)",
+        "  d                Scroll down half page (prefix N repeats)",
+        "  u                Scroll up half page (prefix N repeats)",
+        "  g / < / Home     Go to line N (default: top)",
+        "  G / > / End      Go to line N (default: bottom)",
+        "  Np / N%          Go to N% into file",
+        "  h / l / ← / →    Scroll 4 columns left/right (chop mode, prefix N)",
+        "  ( / )            Scroll half-page left/right (chop mode, prefix N)",
+        "",
+        "SEARCH / FILTER",
+        "  /pattern         Search forward (prefix N repeats)",
+        "  ?pattern         Search backward (prefix N repeats)",
+        "  &pattern         Filter lines by regex pattern (Enter to clear)",
+        "  n                Next match (prefix N repeats)",
+        "  N                Previous match (prefix N repeats)",
+        "  i                Toggle case-insensitive",
+        "  H                Toggle search highlights",
+        "  ESC              Clear search pattern & highlights",
+        "",
+        "DISPLAY",
+        "  w                Toggle word wrap / chop",
+        "  L                Toggle line numbers",
+        "  M                Toggle verbose status bar",
+        "  =                Show detailed file info",
+        "  r / ^L           Repaint screen",
+        "  R                Reload file from disk",
+        "",
+        "SESSION",
+        "  v                Open editor at current line",
+        "  !cmd             Run shell command",
+        "  F                Follow mode (tail -f). q to exit.",
+        "  Ctrl+H           This help screen",
+        "  q / Q            Quit / Return",
+        "",
+        "Status bar flags:  [W] wrap  [I] icase  [#] line-nums  [H] highlights off  [F] follow",
+    };
 
-    printf("\033[1mSESSION\033[0m\n");
-    printf("  v                Open editor at current line\n");
-    printf("  !cmd             Run shell command\n");
-    printf("  F                Follow mode (tail -f). q to exit.\n");
-    printf("  h                This help screen\n");
-    printf("  q / Q            Quit\n\n");
+    size_t num_lines = sizeof(help_lines) / sizeof(help_lines[0]);
+    for (size_t i = 0; i < num_lines; i++) {
+        rip_add_raw_line(&help_state, help_lines[i], strlen(help_lines[i]));
+        help_state.raw_lines[help_state.num_raw_lines - 1].byte_offset = help_state.file_size;
+        help_state.file_size += strlen(help_lines[i]) + 1;
+    }
 
-    printf("Status bar flags:  \033[7m[W]\033[0m wrap  \033[7m[I]\033[0m icase  \033[7m[#]\033[0m line-nums  \033[7m[H]\033[0m highlights off  \033[7m[F]\033[0m follow\n");
-    printf("\n\033[90mPress any key to return...\033[0m");
-    fflush(stdout);
-    rip_read_key(state);
+    rip_run(&help_state);
+
+    help_state.raw_mode_enabled = 0;
+    rip_free_state(&help_state);
 }
 
 static size_t get_current_raw_line_num(rip_state_t *state) {
@@ -548,8 +595,8 @@ static size_t get_current_raw_line_num(rip_state_t *state) {
 }
 
 static void open_in_editor(rip_state_t *state) {
-    if (!state->filename || strcmp(state->filename, "stdin") == 0) {
-        snprintf(state->status_msg, sizeof(state->status_msg), "Cannot edit stdin.");
+    if (!state->filename || strcmp(state->filename, "stdin") == 0 || strcmp(state->filename, "Help Screen") == 0) {
+        snprintf(state->status_msg, sizeof(state->status_msg), "Cannot edit %s.", state->filename ? state->filename : "stdin");
         return;
     }
 
@@ -667,9 +714,9 @@ static void shell_command_prompt(rip_state_t *state) {
  *  Follow mode                                                                *
  * ─────────────────────────────────────────────────────────────────────────── */
 static void enter_follow_mode(rip_state_t *state) {
-    if (!state->filename || strcmp(state->filename, "stdin") == 0) {
+    if (!state->filename || strcmp(state->filename, "stdin") == 0 || strcmp(state->filename, "Help Screen") == 0) {
         snprintf(state->status_msg, sizeof(state->status_msg),
-                 "Follow mode not available for stdin");
+                 "Follow mode not available for %s", state->filename ? state->filename : "stdin");
         return;
     }
 
@@ -835,6 +882,7 @@ void rip_run(rip_state_t *state) {
 
             /* ── reload ── */
             case 'R':
+                if (strcmp(state->filename, "Help Screen") == 0) break;
                 rip_reload(state);
                 snprintf(state->status_msg, sizeof(state->status_msg), "File reloaded.");
                 break;
@@ -885,7 +933,7 @@ void rip_run(rip_state_t *state) {
             }
 
             /* ── horizontal scroll (chop mode only) ── */
-            case KEY_ARROW_RIGHT:
+            case 'l': case KEY_ARROW_RIGHT:
                 if (!state->wrap_enabled) {
                     int ln_width = rip_get_gutter_width(state);
                     int content_cols = state->term_cols - ln_width;
@@ -897,7 +945,7 @@ void rip_run(rip_state_t *state) {
                     if (state->horiz_offset > max_offset) state->horiz_offset = max_offset;
                 }
                 break;
-            case KEY_ARROW_LEFT:
+            case 'h': case KEY_ARROW_LEFT:
                 if (!state->wrap_enabled) {
                     state->horiz_offset -= N * 4;
                     if (state->horiz_offset < 0) state->horiz_offset = 0;
@@ -1028,7 +1076,10 @@ void rip_run(rip_state_t *state) {
                 break;
 
             /* ── help ── */
-            case 'h': case 'H' & 0x1f: /* also handle if not highlight toggle */
+            case 'H' & 0x1f: /* Ctrl+H help */
+                if (strcmp(state->filename, "Help Screen") == 0) {
+                    return; /* exit help pager loop */
+                }
                 show_help(state);
                 printf("\033[2J");
                 break;

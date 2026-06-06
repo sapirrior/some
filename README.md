@@ -4,16 +4,19 @@
 
 ## Core Features
 
-- **GNU `less` Compatible Navigation**: Fully supports familiar keybindings (`j`/`k` scroll, `Space`/`b` page scroll, `/` search, `n`/`N` next/prev match, `q` quit).
+- **Vim-style & GNU `less` Navigation**: Supports standard Vim movements (`h`/`j`/`k`/`l` for left/down/up/right) and classic navigation (`Space`/`b` page scroll, `/` search, `n`/`N` next/prev match, `q` quit).
 - **Auto-Converter Pipeline**:
   - **JSON**: Sniffs and pretty-prints minified JSON files automatically.
   - **CSV / TSV**: Automatically parses CSV/TSV and aligns fields into clean, visually readable tables in the terminal.
 - **Smart Word Wrapping**: Wraps long lines nicely at word boundaries while preserving the starting line's indentation (can be toggled interactively with the `w` key).
+- **Interactive Line Filtering**: Press `&` to isolate matches by regular expression dynamically, with instant reflow rendering.
 - **Auto-Colorization**:
   - **Code Highlights**: Adds syntax highlighting to C/C++ files (`.c`, `.h`, `.cpp`).
   - **Log Level Colors**: Automatically highlights logs containing `INFO`, `WARN`, `DEBUG`, or `ERROR` in corresponding colors.
-- **Search Highlighting**: Interactive regex-based search (`/`) with high-contrast background highlights.
+- **Search Highlighting**: Interactive regex-based search (`/` / `?`) with high-contrast background highlights.
+- **Nested Help Pager**: Press `Ctrl+H` to access the interactive help menu loaded directly as scrollable pager content, supporting scroll, wraps, and search.
 - **Signal-Safe Resize**: Dynamic terminal window resize handling (`SIGWINCH`) recalculates word wraps and redraws cleanly.
+
 
 ---
 
@@ -65,6 +68,10 @@ cat test_code.c | ./rip
 | `g` / `Home` | Jump to beginning of file |
 | `G` / `End` | Jump to end of file |
 | `w` | Toggle smart word wrapping |
-| `/` | Regex search |
+| `h` / `l` / `←` / `→` | Scroll 4 columns left / right (chop mode) |
+| `(` / `)` | Scroll half-page left / right (chop mode) |
+| `/` / `?` | Regex search (forward / backward) |
+| `&` | Regex line filter |
 | `n` / `N` | Jump to next / previous search match |
+| `Ctrl+H` | Help screen |
 | `q` | Quit |

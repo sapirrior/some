@@ -49,7 +49,6 @@ void rip_init_state(rip_state_t *state) {
 
     /* Incremental loading */
     state->stdin_eof             = 1;
-    state->stdin_nonblocking_set = 0;
     state->raw_last_has_newline  = 1;
 }
 
@@ -286,7 +285,6 @@ void rip_reflow_all(rip_state_t *state) {
  * ─────────────────────────────────────────────────────────────────────────── */
 static int load_from_fp(rip_state_t *state, FILE *fp) {
     state->stdin_eof = 1;
-    state->stdin_nonblocking_set = 0;
 
     size_t cap = 4096, len = 0;
     char *buf = malloc(cap);
@@ -296,7 +294,6 @@ static int load_from_fp(rip_state_t *state, FILE *fp) {
         /* Set stdin (fd 0) to non-blocking */
         int flags = fcntl(STDIN_FILENO, F_GETFL);
         fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
-        state->stdin_nonblocking_set = 1;
 
         /* Read first chunk (up to 32KB) to show initial screen instantly */
         size_t target = 32768;

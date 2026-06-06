@@ -13,8 +13,14 @@ static void handle_sigwinch(int sig) {
 }
 
 static void handle_cleanup_signals(int sig) {
-    rip_disable_raw_mode(&state);
-    rip_free_state(&state);
+    if (state.raw_mode_enabled) {
+        /* Restore alternate screen buffer cleanly using async-signal-safe write */
+        const char *esc_restore = "\033[?1049l";
+        (void)write(STDOUT_FILENO, esc_restore, 8);
+
+        /* Restore raw terminal configurations */
+        tcsetattr(state.tty_fd, TCSAFLUSH, &state.orig_termios);
+    }
     signal(sig, SIG_DFL);
     kill(getpid(), sig);
 }
@@ -32,7 +38,7 @@ static void print_help_cli(const char *prog) {
     printf("  g/Home           Go to line N (default: top, Ng)\n");
     printf("  G/End            Go to line N (default: bottom, NG)\n");
     printf("  Np/N%%           Go to N%% into file\n");
-    printf("  ←/→              Scroll 4 columns left/right\n");
+    printf("  h/l / ←/→        Scroll 4 columns left/right\n");
     printf("  (/)              Scroll half-page left/right\n\n");
     printf("Search:\n");
     printf("  /pattern         Forward search (prefix N repeats)\n");
@@ -52,7 +58,7 @@ static void print_help_cli(const char *prog) {
     printf("  v                Open editor at current line\n");
     printf("  !cmd             Run shell command\n");
     printf("  F                Follow mode (tail -f style). q to exit.\n");
-    printf("  h                Help screen (inside rip)\n");
+    printf("  Ctrl+H           Help screen (inside rip)\n");
     printf("  q / Q            Quit\n\n");
     printf("Status bar flags: [W]=wrap  [I]=icase  [#]=line-nums  [H]=hi-off  [F]=follow\n");
 }
