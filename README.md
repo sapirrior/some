@@ -1,5 +1,7 @@
 # `some` — Scroll Or More Easily (less++)
 
+> *"Some are less, but `some` is more!"*
+
 `some` is a terminal pager written in C that behaves like GNU `less` but includes built-in, zero-config modular filters to automatically make reading terminal outputs much better.
 
 ## Core Features
