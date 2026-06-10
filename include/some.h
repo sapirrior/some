@@ -61,6 +61,7 @@ typedef struct {
     int follow_mode;        /* 1 = tail-f mode active                       */
     int verbose_prompt;     /* 1 = verbose status bar, 0 = short prompt     */
     int syntax_highlighting; /* 1 = syntax highlighting ON, 0 = OFF          */
+    int diff_enabled;       /* 1 = show diff, 0 = hide diff                 */
 
     /* ── Status message (temporary overlay) ── */
     char status_msg[512];   /* if non-empty, show this instead of normal bar*/
@@ -69,6 +70,7 @@ typedef struct {
     const char *filename;
     int is_stdin;
     size_t file_size;       /* total bytes of raw file                      */
+    char *diff_status;      /* array of size num_raw_lines containing diff_status_t */
 
     /* ── Search Cache ── */
     size_t *search_matches;
@@ -97,6 +99,7 @@ int  some_reload(some_state_t *state);
 void some_add_raw_line(some_state_t *state, const char *data, size_t len);
 void some_append_stream_data(some_state_t *state, const char *buf, size_t len);
 void some_update_search_matches(some_state_t *state);
+void some_load_diff_status(some_state_t *state);
 
 /* Reflow */
 void some_reflow_all(some_state_t *state);

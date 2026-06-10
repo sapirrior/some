@@ -98,6 +98,7 @@ static void render_status(some_state_t *state) {
             if (!state->search_highlight)     strcat(tmp, "H");
             if (state->follow_mode)           strcat(tmp, "F");
             if (!state->syntax_highlighting)  strcat(tmp, "S");
+            if (state->diff_enabled)          strcat(tmp, "D");
             if (state->filter_pattern[0])     strcat(tmp, "&");
             strcat(tmp, "]");
             if (strcmp(tmp, "[]") != 0) strcpy(flags, tmp);
@@ -280,17 +281,85 @@ static void print_line_safe(const char *line, regex_t *re, int has_re, int max_c
 /* ─────────────────────────────────────────────────────────────────────────── *
  *  Main render                                                                *
  * ─────────────────────────────────────────────────────────────────────────── */
-int some_get_gutter_width(some_state_t *state) {
-    if (!state->line_numbers) return 0;
-    size_t total = state->num_raw_lines;
-    size_t estimate = total * 2;
-    if (estimate < 10) estimate = 10;
-    int width = 1;
-    while (estimate >= 10) {
-        estimate /= 10;
-        width++;
+void some_load_diff_status(some_state_t *state) {
+    if (state->diff_status) {
+        free(state->diff_status);
+        state->diff_status = NULL;
     }
-    return width + 2; /* space + pipe */
+    if (!state->diff_enabled || !state->filename || strcmp(state->filename, "stdin") == 0 || strcmp(state->filename, "Help Screen") == 0) {
+        return;
+    }
+
+    state->diff_status = calloc(state->num_raw_lines, sizeof(char));
+    if (!state->diff_status) return;
+
+    char cmd[1024];
+    snprintf(cmd, sizeof(cmd), "git diff -U0 -- '%s' 2>/dev/null", state->filename);
+    FILE *fp = popen(cmd, "r");
+    if (!fp) return;
+
+    char line[1024];
+    while (fgets(line, sizeof(line), fp)) {
+        if (strncmp(line, "@@ ", 3) == 0) {
+            int old_len = 1;
+            int new_start = 0, new_len = 1;
+            char *plus = strchr(line, '+');
+            if (plus) {
+                char *minus = strchr(line, '-');
+                if (minus) {
+                    char *comma_min = strchr(minus, ',');
+                    if (comma_min && comma_min < plus) {
+                        old_len = atoi(comma_min + 1);
+                    }
+                }
+                char *comma_plus = strchr(plus, ',');
+                if (comma_plus) {
+                    new_len = atoi(comma_plus + 1);
+                }
+                new_start = atoi(plus + 1);
+            }
+
+            if (new_start > 0) {
+                if (new_len > 0) {
+                    for (int l = 0; l < new_len; l++) {
+                        size_t idx = (size_t)(new_start - 1 + l);
+                        if (idx < state->num_raw_lines) {
+                            if (old_len > 0) {
+                                state->diff_status[idx] = 3; // MODIFIED
+                            } else {
+                                state->diff_status[idx] = 1; // ADDED
+                            }
+                        }
+                    }
+                } else {
+                    size_t idx = (size_t)(new_start - 1);
+                    if (idx < state->num_raw_lines) {
+                        state->diff_status[idx] = 2; // DELETED_ABOVE
+                    }
+                }
+            }
+        }
+    }
+    pclose(fp);
+}
+
+int some_get_gutter_width(some_state_t *state) {
+    int width = 0;
+    if (state->line_numbers) {
+        size_t total = state->num_raw_lines;
+        size_t estimate = total * 2;
+        if (estimate < 10) estimate = 10;
+        int num_width = 1;
+        while (estimate >= 10) {
+            estimate /= 10;
+            num_width++;
+        }
+        width += num_width + 2; /* space + pipe */
+    }
+    if (state->diff_enabled) {
+        width += 2; /* diff char + space */
+    }
+    return width;
 }
 
 void some_render(some_state_t *state) {
@@ -322,9 +391,26 @@ void some_render(some_state_t *state) {
             /* Line numbers */
             if (state->line_numbers) {
                 if (idx > 0 && state->display_lines[idx].raw_line_idx == state->display_lines[idx - 1].raw_line_idx) {
-                    printf("\033[90m%*s│\033[0m", ln_width - 1, "");
+                    int num_width = ln_width - (state->diff_enabled ? 2 : 0);
+                    printf("\033[90m%*s│\033[0m", num_width - 1, "");
                 } else {
-                    printf("\033[90m%*zu│\033[0m", ln_width - 1, state->display_lines[idx].raw_line_idx + 1);
+                    int num_width = ln_width - (state->diff_enabled ? 2 : 0);
+                    printf("\033[90m%*zu│\033[0m", num_width - 1, state->display_lines[idx].raw_line_idx + 1);
+                }
+            }
+
+            /* Diff Gutter */
+            if (state->diff_enabled) {
+                size_t raw_idx = state->display_lines[idx].raw_line_idx;
+                int diff_status = (state->diff_status && raw_idx < state->num_raw_lines) ? state->diff_status[raw_idx] : 0;
+                if (diff_status == 1) {
+                    printf("\033[1;38;2;63;185;80m┃\033[0m ");
+                } else if (diff_status == 2) {
+                    printf("\033[1;38;2;248;81;73m┃\033[0m ");
+                } else if (diff_status == 3) {
+                    printf("\033[1;38;2;210;168;255m┃\033[0m ");
+                } else {
+                    printf("  ");
                 }
             }
 
@@ -711,6 +797,7 @@ static void show_help(some_state_t *state) {
         "  w                Toggle word wrap / chop",
         "  L                Toggle line numbers",
         "  s                Toggle syntax highlighting",
+        "  c                Toggle diff (Git changes) gutter",
         "  M                Toggle verbose status bar",
         "  =                Show detailed file info",
         "  r / ^L           Repaint screen",
@@ -723,7 +810,7 @@ static void show_help(some_state_t *state) {
         "  Ctrl+H           This help screen",
         "  q / Q            Quit / Return",
         "",
-        "Status bar flags:  [W] wrap  [I] icase  [#] line-nums  [H] highlights off  [F] follow  [S] syntax off",
+        "Status bar flags:  [W] wrap  [I] icase  [#] line-nums  [H] highlights off  [F] follow  [S] syntax off  [D] diff active",
     };
 
     size_t num_lines = sizeof(help_lines) / sizeof(help_lines[0]);
@@ -1180,6 +1267,27 @@ void some_run(some_state_t *state) {
                 break;
 
              /* ── display toggles ── */
+            case 'c': case 'C': {
+                state->diff_enabled ^= 1;
+                if (strcmp(state->filename, "stdin") == 0 || strcmp(state->filename, "Help Screen") == 0) {
+                    snprintf(state->status_msg, sizeof(state->status_msg),
+                             "Cannot toggle diff on stdin or help screen.");
+                } else {
+                    if (state->diff_enabled) {
+                        some_load_diff_status(state);
+                    } else {
+                        if (state->diff_status) {
+                            free(state->diff_status);
+                            state->diff_status = NULL;
+                        }
+                    }
+                    some_reflow_all(state);
+                    clamp_top(state);
+                    snprintf(state->status_msg, sizeof(state->status_msg),
+                             "Diff gutter: %s", state->diff_enabled ? "ON" : "OFF");
+                }
+                break;
+            }
             case 's': {
                 state->syntax_highlighting ^= 1;
                 if (strcmp(state->filename, "stdin") == 0) {

@@ -54,6 +54,8 @@ void some_init_state(some_state_t *state) {
     state->search_history_count  = 0;
     state->filter_history_count  = 0;
     state->syntax_highlighting   = 1;
+    state->diff_enabled          = 0;
+    state->diff_status           = NULL;
 }
 
 void some_free_state(some_state_t *state) {
@@ -69,6 +71,9 @@ void some_free_state(some_state_t *state) {
     }
     if (state->search_matches) {
         free(state->search_matches);
+    }
+    if (state->diff_status) {
+        free(state->diff_status);
     }
     some_init_state(state);
 }
@@ -381,6 +386,10 @@ static int load_from_fp(some_state_t *state, FILE *fp) {
 
     free(buf);
     if (converted) free(converted);
+
+    if (state->diff_enabled) {
+        some_load_diff_status(state);
+    }
     return 0;
 }
 
