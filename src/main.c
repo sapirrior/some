@@ -40,9 +40,10 @@ static void print_help_cli(const char *prog) {
     printf("  Np/N%%           Go to N%% into file\n");
     printf("  h/l / ←/→        Scroll 4 columns left/right\n");
     printf("  (/)              Scroll half-page left/right\n\n");
-    printf("Search:\n");
+    printf("Search & Filter:\n");
     printf("  /pattern         Forward search (prefix N repeats)\n");
     printf("  ?pattern         Backward search (prefix N repeats)\n");
+    printf("  &pattern         Filter lines by regex pattern (Enter to clear)\n");
     printf("  n                Next match (prefix N repeats)\n");
     printf("  N                Previous match (prefix N repeats)\n");
     printf("  i                Toggle case-insensitive (default: ON)\n");
@@ -51,7 +52,10 @@ static void print_help_cli(const char *prog) {
     printf("Display:\n");
     printf("  w                Toggle word wrap / chop\n");
     printf("  L                Toggle line numbers\n");
-    printf("  =                Show file info\n");
+    printf("  s                Toggle AST-based syntax highlighting\n");
+    printf("  c                Toggle Git diff changes gutter\n");
+    printf("  M                Toggle verbose status bar prompt\n");
+    printf("  =                Show detailed file stats / info\n");
     printf("  r                Repaint screen\n");
     printf("  R                Reload file from disk\n\n");
     printf("Session:\n");
@@ -60,7 +64,7 @@ static void print_help_cli(const char *prog) {
     printf("  F                Follow mode (tail -f style). q to exit.\n");
     printf("  Ctrl+H           Help screen (inside some)\n");
     printf("  q / Q            Quit\n\n");
-    printf("Status bar flags: [W]=wrap  [I]=icase  [#]=line-nums  [H]=hi-off  [F]=follow\n");
+    printf("Status bar flags: [W]=wrap  [I]=icase  [#]=line-nums  [H]=hi-off  [F]=follow  [S]=syntax-off  [D]=diff-active\n");
 }
 
 int main(int argc, char *argv[]) {
