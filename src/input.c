@@ -1,5 +1,5 @@
 #include "some.h"
-#include "modules.h"
+#include "ast.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -358,7 +358,7 @@ static int load_from_fp(some_state_t *state, FILE *fp) {
     state->file_size = len;
 
     size_t out_len = len;
-    char *converted = module_convert(state->filename, buf, len, &out_len);
+    char *converted = ast_convert(state->filename, buf, len, &out_len);
     const char *src  = converted ? converted : buf;
     size_t src_len   = converted ? out_len   : len;
 
