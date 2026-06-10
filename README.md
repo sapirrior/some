@@ -14,7 +14,8 @@
   - **Code Highlights**: Adds syntax highlighting to C/C++ files (`.c`, `.h`, `.cpp`).
   - **Log Level Colors**: Automatically highlights logs containing `INFO`, `WARN`, `DEBUG`, or `ERROR` in corresponding colors.
 - **Search Highlighting**: Interactive regex-based search (`/` / `?`) with high-contrast background highlights.
-- **Nested Help Pager**: Press `Ctrl+H` to access the interactive help menu loaded directly as scrollable pager content, supporting scroll, wraps, and search.
+- **Nested Help Pager**: Press `Ctrl+H` to access the interactive, beautifully colorized help menu loaded directly as scrollable pager content, supporting scroll, wraps, and search.
+- **Git Diff Gutter**: Press `c` to toggle real-time Git change tracking indicators in the gutter (shows additions, deletions, and modifications with GitHub's exact styling).
 - **Signal-Safe Resize**: Dynamic terminal window resize handling (`SIGWINCH`) recalculates word wraps and redraws cleanly.
 
 
@@ -65,13 +66,25 @@ cat test_code.c | ./some
 | `k` / `↑` | Scroll up one line |
 | `Space` / `PgDn` | Scroll down one page |
 | `b` / `PgUp` | Scroll up one page |
-| `g` / `Home` | Jump to beginning of file |
-| `G` / `End` | Jump to end of file |
+| `d` | Scroll down half page |
+| `u` | Scroll up half page |
+| `g` / `Home` | Jump to beginning of file (or line N if prefix N is typed) |
+| `G` / `End` | Jump to end of file (or line N if prefix N is typed) |
 | `w` | Toggle smart word wrapping |
+| `L` | Toggle line numbers |
+| `s` | Toggle syntax highlighting |
+| `c` | Toggle Git diff changes gutter indicator (`┃` in bold green/red/purple) |
+| `M` | Toggle verbose status bar prompt |
+| `=` | Show detailed file statistics / status overlay |
 | `h` / `l` / `←` / `→` | Scroll 4 columns left / right (chop mode) |
 | `(` / `)` | Scroll half-page left / right (chop mode) |
 | `/` / `?` | Regex search (forward / backward) |
 | `&` | Regex line filter |
 | `n` / `N` | Jump to next / previous search match |
-| `Ctrl+H` | Help screen |
-| `q` | Quit |
+| `R` | Reload current file from disk |
+| `v` | Open current line in editor ($VISUAL or $EDITOR) |
+| `!` | Run shell command in a subshell |
+| `F` | Real-time follow mode (tail -f style) |
+| `Ctrl+H` | Styled help screen |
+| `q` | Quit / Close active help screen |
+
