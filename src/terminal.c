@@ -1,4 +1,4 @@
-#include "rip.h"
+#include "some.h"
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -6,7 +6,7 @@
 #include <sys/ioctl.h>
 #include <errno.h>
 
-int rip_enable_raw_mode(rip_state_t *state) {
+int some_enable_raw_mode(some_state_t *state) {
     if (state->raw_mode_enabled) return 0;
 
     // If stdin is a terminal, use it. Otherwise (piped input), open /dev/tty
@@ -49,7 +49,7 @@ int rip_enable_raw_mode(rip_state_t *state) {
     return 0;
 }
 
-void rip_disable_raw_mode(rip_state_t *state) {
+void some_disable_raw_mode(some_state_t *state) {
     if (!state->raw_mode_enabled) return;
 
     // Restore original screen buffer
@@ -63,7 +63,7 @@ void rip_disable_raw_mode(rip_state_t *state) {
     state->raw_mode_enabled = 0;
 }
 
-void rip_get_terminal_size(rip_state_t *state) {
+void some_get_terminal_size(some_state_t *state) {
     struct winsize ws;
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
         // Fallback values
@@ -75,7 +75,7 @@ void rip_get_terminal_size(rip_state_t *state) {
     }
 }
 
-int rip_read_key(rip_state_t *state) {
+int some_read_key(some_state_t *state) {
     char c;
     ssize_t nread;
     while ((nread = read(state->tty_fd, &c, 1)) != 1) {
@@ -140,7 +140,7 @@ int rip_read_key(rip_state_t *state) {
     return c;
 }
 
-int rip_decode_utf8(const char *str, size_t len, unsigned int *ch) {
+int some_decode_utf8(const char *str, size_t len, unsigned int *ch) {
     if (len == 0) {
         *ch = 0;
         return 0;
@@ -170,7 +170,7 @@ invalid:
     return 1;
 }
 
-int rip_char_width(unsigned int ch, int visual_col) {
+int some_char_width(unsigned int ch, int visual_col) {
     if (ch == '\t') {
         return 4 - (visual_col % 4);
     }

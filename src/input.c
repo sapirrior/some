@@ -1,4 +1,4 @@
-#include "rip.h"
+#include "some.h"
 #include "modules.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,7 +12,7 @@
 /* ─────────────────────────────────────────────────────────────────────────── *
  *  State init / free                                                          *
  * ─────────────────────────────────────────────────────────────────────────── */
-void rip_init_state(rip_state_t *state) {
+void some_init_state(some_state_t *state) {
     state->raw_lines             = NULL;
     state->num_raw_lines         = 0;
     state->raw_lines_capacity    = 0;
@@ -29,7 +29,7 @@ void rip_init_state(rip_state_t *state) {
     state->search_pattern[0]     = '\0';
     state->filter_pattern[0]     = '\0';
     state->search_dir            = 1;
-    state->search_case_insensitive = 1; /* rip default: case-insensitive */
+    state->search_case_insensitive = 1; /* some default: case-insensitive */
     state->search_highlight      = 1;
     state->num_prefix            = -1;
     state->wrap_enabled          = 1;
@@ -52,7 +52,7 @@ void rip_init_state(rip_state_t *state) {
     state->raw_last_has_newline  = 1;
 }
 
-void rip_free_state(rip_state_t *state) {
+void some_free_state(some_state_t *state) {
     if (state->raw_lines) {
         for (size_t i = 0; i < state->num_raw_lines; i++)
             free(state->raw_lines[i].data);
@@ -66,17 +66,17 @@ void rip_free_state(rip_state_t *state) {
     if (state->search_matches) {
         free(state->search_matches);
     }
-    rip_init_state(state);
+    some_init_state(state);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── *
  *  Line buffer helpers                                                         *
  * ─────────────────────────────────────────────────────────────────────────── */
-void rip_add_raw_line(rip_state_t *state, const char *data, size_t len) {
+void some_add_raw_line(some_state_t *state, const char *data, size_t len) {
     if (state->num_raw_lines >= state->raw_lines_capacity) {
         state->raw_lines_capacity = state->raw_lines_capacity ? state->raw_lines_capacity * 2 : 128;
         state->raw_lines = realloc(state->raw_lines,
-                                   state->raw_lines_capacity * sizeof(rip_line_t));
+                                   state->raw_lines_capacity * sizeof(some_line_t));
     }
     state->raw_lines[state->num_raw_lines].data = malloc(len + 1);
     memcpy(state->raw_lines[state->num_raw_lines].data, data, len);
@@ -85,12 +85,12 @@ void rip_add_raw_line(rip_state_t *state, const char *data, size_t len) {
     state->num_raw_lines++;
 }
 
-void rip_add_display_line(rip_state_t *state, const char *data, size_t len, size_t raw_line_idx) {
+void some_add_display_line(some_state_t *state, const char *data, size_t len, size_t raw_line_idx) {
     if (state->num_display_lines >= state->display_lines_capacity) {
         state->display_lines_capacity = state->display_lines_capacity
                                         ? state->display_lines_capacity * 2 : 128;
         state->display_lines = realloc(state->display_lines,
-                                       state->display_lines_capacity * sizeof(rip_line_t));
+                                       state->display_lines_capacity * sizeof(some_line_t));
     }
     state->display_lines[state->num_display_lines].data = malloc(len + 1);
     memcpy(state->display_lines[state->num_display_lines].data, data, len);
@@ -103,7 +103,7 @@ void rip_add_display_line(rip_state_t *state, const char *data, size_t len, size
 /* ─────────────────────────────────────────────────────────────────────────── *
  *  Word-wrap (preserves leading indent)                                       *
  * ─────────────────────────────────────────────────────────────────────────── */
-static void wrap_line(rip_state_t *state, const char *line, size_t len, int width, size_t raw_offset, size_t raw_line_idx) {
+static void wrap_line(some_state_t *state, const char *line, size_t len, int width, size_t raw_offset, size_t raw_line_idx) {
     if (width <= 0) width = 80;
 
     /* Measure indent: count bytes and columns of leading whitespace */
@@ -111,12 +111,12 @@ static void wrap_line(rip_state_t *state, const char *line, size_t len, int widt
     int indent_cols = 0;
     while (indent_bytes < len) {
         unsigned int ch;
-        int clen = rip_decode_utf8(line + indent_bytes, len - indent_bytes, &ch);
+        int clen = some_decode_utf8(line + indent_bytes, len - indent_bytes, &ch);
         if (ch == ' ') {
             indent_cols += 1;
             indent_bytes += clen;
         } else if (ch == '\t') {
-            indent_cols += rip_char_width(ch, indent_cols);
+            indent_cols += some_char_width(ch, indent_cols);
             indent_bytes += clen;
         } else {
             break;
@@ -142,8 +142,8 @@ static void wrap_line(rip_state_t *state, const char *line, size_t len, int widt
 
         while (scan_byte < len) {
             unsigned int ch;
-            int clen = rip_decode_utf8(line + scan_byte, len - scan_byte, &ch);
-            int w = rip_char_width(ch, current_cols);
+            int clen = some_decode_utf8(line + scan_byte, len - scan_byte, &ch);
+            int w = some_char_width(ch, current_cols);
 
             if (current_cols + w > max_cols) {
                 break;
@@ -161,14 +161,14 @@ static void wrap_line(rip_state_t *state, const char *line, size_t len, int widt
         if (scan_byte >= len) {
             size_t segment_len = len - byte_off;
             if (first_line) {
-                rip_add_display_line(state, line + byte_off, segment_len, raw_line_idx);
+                some_add_display_line(state, line + byte_off, segment_len, raw_line_idx);
                 state->display_lines[state->num_display_lines - 1].byte_offset = raw_offset + byte_off;
             } else {
                 char *buf = malloc(indent_bytes + segment_len + 1);
                 memcpy(buf, indent_str, indent_bytes);
                 memcpy(buf + indent_bytes, line + byte_off, segment_len);
                 buf[indent_bytes + segment_len] = '\0';
-                rip_add_display_line(state, buf, indent_bytes + segment_len, raw_line_idx);
+                some_add_display_line(state, buf, indent_bytes + segment_len, raw_line_idx);
                 state->display_lines[state->num_display_lines - 1].byte_offset = raw_offset + byte_off;
                 free(buf);
             }
@@ -186,12 +186,12 @@ static void wrap_line(rip_state_t *state, const char *line, size_t len, int widt
         /* Prevent infinite loop if no characters fit */
         if (split_byte == byte_off) {
             unsigned int ch;
-            split_byte += rip_decode_utf8(line + byte_off, len - byte_off, &ch);
+            split_byte += some_decode_utf8(line + byte_off, len - byte_off, &ch);
         }
 
         size_t segment_len = split_byte - byte_off;
         if (first_line) {
-            rip_add_display_line(state, line + byte_off, segment_len, raw_line_idx);
+            some_add_display_line(state, line + byte_off, segment_len, raw_line_idx);
             state->display_lines[state->num_display_lines - 1].byte_offset = raw_offset + byte_off;
             first_line = 0;
         } else {
@@ -199,7 +199,7 @@ static void wrap_line(rip_state_t *state, const char *line, size_t len, int widt
             memcpy(buf, indent_str, indent_bytes);
             memcpy(buf + indent_bytes, line + byte_off, segment_len);
             buf[indent_bytes + segment_len] = '\0';
-            rip_add_display_line(state, buf, indent_bytes + segment_len, raw_line_idx);
+            some_add_display_line(state, buf, indent_bytes + segment_len, raw_line_idx);
             state->display_lines[state->num_display_lines - 1].byte_offset = raw_offset + byte_off;
             free(buf);
         }
@@ -208,7 +208,7 @@ static void wrap_line(rip_state_t *state, const char *line, size_t len, int widt
         /* skip trailing spaces/tabs after split point to avoid leading spaces on wrapped line */
         while (byte_off < len) {
             unsigned int ch;
-            int clen = rip_decode_utf8(line + byte_off, len - byte_off, &ch);
+            int clen = some_decode_utf8(line + byte_off, len - byte_off, &ch);
             if (ch == ' ' || ch == '\t') {
                 byte_off += clen;
             } else {
@@ -220,7 +220,7 @@ static void wrap_line(rip_state_t *state, const char *line, size_t len, int widt
     free(indent_str);
 }
 
-void rip_reflow_all(rip_state_t *state) {
+void some_reflow_all(some_state_t *state) {
     if (state->display_lines) {
         for (size_t i = 0; i < state->num_display_lines; i++)
             free(state->display_lines[i].data);
@@ -230,7 +230,7 @@ void rip_reflow_all(rip_state_t *state) {
     state->num_display_lines     = 0;
     state->display_lines_capacity= 0;
 
-    int ln_width = rip_get_gutter_width(state);
+    int ln_width = some_get_gutter_width(state);
     int wrap_width = state->term_cols - ln_width;
     if (wrap_width < 1) wrap_width = 1;
 
@@ -242,7 +242,7 @@ void rip_reflow_all(rip_state_t *state) {
     }
 
     for (size_t i = 0; i < state->num_raw_lines; i++) {
-        rip_line_t *r = &state->raw_lines[i];
+        some_line_t *r = &state->raw_lines[i];
         if (has_filter) {
             if (regexec(&filter_re, r->data, 0, NULL, 0) != 0) {
                 continue;
@@ -251,7 +251,7 @@ void rip_reflow_all(rip_state_t *state) {
         if (state->wrap_enabled) {
             wrap_line(state, r->data, r->len, wrap_width, r->byte_offset, i);
         } else {
-            rip_add_display_line(state, r->data, r->len, i);
+            some_add_display_line(state, r->data, r->len, i);
             state->display_lines[state->num_display_lines - 1].byte_offset = r->byte_offset;
         }
     }
@@ -263,13 +263,13 @@ void rip_reflow_all(rip_state_t *state) {
     /* Calculate the visual width of the longest display line */
     int max_w = 0;
     for (size_t i = 0; i < state->num_display_lines; i++) {
-        rip_line_t *d = &state->display_lines[i];
+        some_line_t *d = &state->display_lines[i];
         int vis_w = 0;
         size_t off = 0;
         while (off < d->len) {
             unsigned int ch;
-            off += rip_decode_utf8(d->data + off, d->len - off, &ch);
-            vis_w += rip_char_width(ch, vis_w);
+            off += some_decode_utf8(d->data + off, d->len - off, &ch);
+            vis_w += some_char_width(ch, vis_w);
         }
         if (vis_w > max_w) {
             max_w = vis_w;
@@ -277,13 +277,13 @@ void rip_reflow_all(rip_state_t *state) {
     }
     state->max_line_width = max_w;
 
-    rip_update_search_matches(state);
+    some_update_search_matches(state);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── *
  *  Read input (file or stdin)                                                 *
  * ─────────────────────────────────────────────────────────────────────────── */
-static int load_from_fp(rip_state_t *state, FILE *fp) {
+static int load_from_fp(some_state_t *state, FILE *fp) {
     state->stdin_eof = 1;
 
     size_t cap = 4096, len = 0;
@@ -347,7 +347,7 @@ static int load_from_fp(rip_state_t *state, FILE *fp) {
     size_t start = 0;
     for (size_t i = 0; i <= src_len; i++) {
         if (i == src_len || src[i] == '\n' || src[i] == '\r') {
-            rip_add_raw_line(state, src + start, i - start);
+            some_add_raw_line(state, src + start, i - start);
             state->raw_lines[state->num_raw_lines - 1].byte_offset = start;
             if (i < src_len && src[i] == '\r' && i+1 < src_len && src[i+1] == '\n') i++;
             start = i + 1;
@@ -359,7 +359,7 @@ static int load_from_fp(rip_state_t *state, FILE *fp) {
     return 0;
 }
 
-void rip_append_stream_data(rip_state_t *state, const char *buf, size_t len) {
+void some_append_stream_data(some_state_t *state, const char *buf, size_t len) {
     if (len == 0) return;
 
     size_t start = 0;
@@ -371,7 +371,7 @@ void rip_append_stream_data(rip_state_t *state, const char *buf, size_t len) {
 
             if (first_part && !state->raw_last_has_newline && state->num_raw_lines > 0) {
                 /* Append to the last line */
-                rip_line_t *last = &state->raw_lines[state->num_raw_lines - 1];
+                some_line_t *last = &state->raw_lines[state->num_raw_lines - 1];
                 last->data = realloc(last->data, last->len + segment_len + 1);
                 memcpy(last->data + last->len, buf + start, segment_len);
                 last->len += segment_len;
@@ -379,7 +379,7 @@ void rip_append_stream_data(rip_state_t *state, const char *buf, size_t len) {
             } else {
                 /* Add as a new line */
                 size_t old_size = state->file_size;
-                rip_add_raw_line(state, buf + start, segment_len);
+                some_add_raw_line(state, buf + start, segment_len);
                 state->raw_lines[state->num_raw_lines - 1].byte_offset = old_size + start;
             }
 
@@ -396,7 +396,7 @@ void rip_append_stream_data(rip_state_t *state, const char *buf, size_t len) {
     state->file_size += len;
 }
 
-void rip_update_search_matches(rip_state_t *state) {
+void some_update_search_matches(some_state_t *state) {
     if (state->search_matches) {
         free(state->search_matches);
         state->search_matches = NULL;
@@ -437,10 +437,10 @@ void rip_update_search_matches(rip_state_t *state) {
     }
 }
 
-int rip_read_input(rip_state_t *state, const char *path) {
+int some_read_input(some_state_t *state, const char *path) {
     if (!path || strcmp(path, "-") == 0) {
         if (isatty(STDIN_FILENO)) {
-            fprintf(stderr, "Missing filename (\"rip --help\" for help)\n");
+            fprintf(stderr, "Missing filename (\"some --help\" for help)\n");
             return -1;
         }
         state->filename = "stdin";
@@ -455,7 +455,7 @@ int rip_read_input(rip_state_t *state, const char *path) {
 }
 
 /* Reload: discard everything and re-read the same file */
-int rip_reload(rip_state_t *state) {
+int some_reload(some_state_t *state) {
     if (!state->filename || strcmp(state->filename, "stdin") == 0)
         return -1; /* can't reload stdin */
 
@@ -485,7 +485,7 @@ int rip_reload(rip_state_t *state) {
     load_from_fp(state, fp);
     fclose(fp);
 
-    rip_reflow_all(state);
+    some_reflow_all(state);
 
     /* Restore position (clamped) */
     size_t max_top = 0;

@@ -1,5 +1,5 @@
 # Compiled Binaries & Object Files
-rip
+some
 *.o
 src/*.o
 

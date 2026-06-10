@@ -5,15 +5,15 @@ LDFLAGS =
 # Core sources
 SRC = src/main.c src/terminal.c src/input.c src/pager.c src/modules.c
 OBJ    = $(SRC:.c=.o)
-TARGET = rip
+TARGET = some
 
 all: $(TARGET)
 
 $(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-# Generic rule: every .c depends on rip.h
-%.o: %.c include/rip.h
+# Generic rule: every .c depends on some.h
+%.o: %.c include/some.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:

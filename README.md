@@ -1,6 +1,6 @@
-# `rip` — Read In Pager (less++)
+# `some` — Scroll Or More Easily (less++)
 
-`rip` is a terminal pager written in C that behaves like GNU `less` but includes built-in, zero-config modular filters to automatically make reading terminal outputs much better.
+`some` is a terminal pager written in C that behaves like GNU `less` but includes built-in, zero-config modular filters to automatically make reading terminal outputs much better.
 
 ## Core Features
 
@@ -38,23 +38,23 @@ make clean && make
 
 ## Usage
 
-Simply run `rip` by passing a file path or piping output to it:
+Simply run `some` by passing a file path or piping output to it:
 
 ```bash
 # View code with syntax highlighting
-./rip test_code.c
+./some test_code.c
 
 # View minified JSON pretty-printed
-./rip test.json
+./some test.json
 
 # View CSV files aligned in clean tables
-./rip test.csv
+./some test.csv
 
 # View log levels highlighted in color
-./rip test.log
+./some test.log
 
 # Pipe command output directly
-cat test_code.c | ./rip
+cat test_code.c | ./some
 ```
 
 ### Controls

@@ -1,4 +1,4 @@
-#include "rip.h"
+#include "some.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,7 +11,7 @@
 /* ─────────────────────────────────────────────────────────────────────────── *
  *  Helpers                                                                    *
  * ─────────────────────────────────────────────────────────────────────────── */
-static size_t get_max_top(rip_state_t *state) {
+static size_t get_max_top(some_state_t *state) {
     int rows = state->term_rows - 1;
     if (rows <= 0) return 0;
     if (state->num_display_lines > (size_t)rows)
@@ -19,24 +19,24 @@ static size_t get_max_top(rip_state_t *state) {
     return 0;
 }
 
-static void clamp_top(rip_state_t *state) {
+static void clamp_top(some_state_t *state) {
     size_t mx = get_max_top(state);
     if (state->top_line > mx) state->top_line = mx;
 }
 
-static void scroll_down(rip_state_t *state, size_t n) {
+static void scroll_down(some_state_t *state, size_t n) {
     size_t mx = get_max_top(state);
     state->top_line = (state->top_line + n <= mx) ? state->top_line + n : mx;
 }
 
-static void scroll_up(rip_state_t *state, size_t n) {
+static void scroll_up(some_state_t *state, size_t n) {
     state->top_line = (state->top_line >= n) ? state->top_line - n : 0;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── *
  *  Status bar                                                                 *
  * ─────────────────────────────────────────────────────────────────────────── */
-static void render_status(rip_state_t *state) {
+static void render_status(some_state_t *state) {
     /* Move to last row, clear it */
     printf("\033[%d;1H\033[K", state->term_rows);
 
@@ -175,8 +175,8 @@ static void print_line_safe(const char *line, regex_t *re, int has_re, int max_c
 
         /* Decode character */
         unsigned int ch;
-        int clen = rip_decode_utf8(line + offset, len - offset, &ch);
-        int char_width = rip_char_width(ch, visual_col);
+        int clen = some_decode_utf8(line + offset, len - offset, &ch);
+        int char_width = some_char_width(ch, visual_col);
 
         /* Determine highlighting state for the starting byte */
         int should_hl = (ms != -1 && offset >= (size_t)ms && offset < (size_t)me);
@@ -255,7 +255,7 @@ static void print_line_safe(const char *line, regex_t *re, int has_re, int max_c
 /* ─────────────────────────────────────────────────────────────────────────── *
  *  Main render                                                                *
  * ─────────────────────────────────────────────────────────────────────────── */
-int rip_get_gutter_width(rip_state_t *state) {
+int some_get_gutter_width(some_state_t *state) {
     if (!state->line_numbers) return 0;
     size_t total = state->num_raw_lines;
     size_t estimate = total * 2;
@@ -268,7 +268,7 @@ int rip_get_gutter_width(rip_state_t *state) {
     return width + 2; /* space + pipe */
 }
 
-void rip_render(rip_state_t *state) {
+void some_render(some_state_t *state) {
     printf("\033[?25l\033[H"); /* hide cursor, go home */
 
     int text_rows = state->term_rows - 1;
@@ -283,7 +283,7 @@ void rip_render(rip_state_t *state) {
     }
 
     /* Compute line-number column width */
-    int ln_width = rip_get_gutter_width(state);
+    int ln_width = some_get_gutter_width(state);
 
     int content_cols = state->term_cols - ln_width;
     if (content_cols < 1) content_cols = 1;
@@ -310,8 +310,8 @@ void rip_render(rip_state_t *state) {
                 size_t off = 0;
                 while (off < raw_len) {
                     unsigned int ch;
-                    off += rip_decode_utf8(raw + off, raw_len - off, &ch);
-                    vis_w += rip_char_width(ch, vis_w);
+                    off += some_decode_utf8(raw + off, raw_len - off, &ch);
+                    vis_w += some_char_width(ch, vis_w);
                 }
                 if (horiz < vis_w && vis_w > horiz + content_cols) {
                     continues = 1;
@@ -343,7 +343,7 @@ void rip_render(rip_state_t *state) {
 /* ─────────────────────────────────────────────────────────────────────────── *
  *  Search                                                                     *
  * ─────────────────────────────────────────────────────────────────────────── */
-static void do_search(rip_state_t *state, int forward, int count) {
+static void do_search(some_state_t *state, int forward, int count) {
     if (state->num_search_matches == 0) {
         if (state->search_pattern[0]) {
             snprintf(state->status_msg, sizeof(state->status_msg), "Pattern not found: %s", state->search_pattern);
@@ -411,7 +411,7 @@ static int validate_regex(const char *pattern, int case_insensitive, char *err_b
 /* ─────────────────────────────────────────────────────────────────────────── *
  *  Search prompt                                                              *
  * ─────────────────────────────────────────────────────────────────────────── */
-static void search_prompt(rip_state_t *state, int forward) {
+static void search_prompt(some_state_t *state, int forward) {
     char ch = forward ? '/' : '?';
     char buf[256] = {0};
     int  len = 0;
@@ -420,7 +420,7 @@ static void search_prompt(rip_state_t *state, int forward) {
     fflush(stdout);
 
     while (1) {
-        int key = rip_read_key(state);
+        int key = some_read_key(state);
         if (key == '\n' || key == '\r') break;
         if (key == 127 || key == '\b') {
             if (len > 0) {
@@ -433,8 +433,8 @@ static void search_prompt(rip_state_t *state, int forward) {
             break;
         } else if (key == KEY_RESIZE) {
             printf("\033[2J");
-            rip_get_terminal_size(state);
-            rip_reflow_all(state);
+            some_get_terminal_size(state);
+            some_reflow_all(state);
             clamp_top(state);
             len = 0;
             break;
@@ -454,12 +454,12 @@ static void search_prompt(rip_state_t *state, int forward) {
         }
         memcpy(state->search_pattern, buf, len + 1);
         state->search_dir = forward ? 1 : -1;
-        rip_update_search_matches(state);
+        some_update_search_matches(state);
         do_search(state, forward, 1);
     }
 }
 
-static void filter_prompt(rip_state_t *state) {
+static void filter_prompt(some_state_t *state) {
     char buf[256] = {0};
     int  len = 0;
 
@@ -467,7 +467,7 @@ static void filter_prompt(rip_state_t *state) {
     fflush(stdout);
 
     while (1) {
-        int key = rip_read_key(state);
+        int key = some_read_key(state);
         if (key == '\n' || key == '\r') break;
         if (key == 127 || key == '\b') {
             if (len > 0) {
@@ -479,8 +479,8 @@ static void filter_prompt(rip_state_t *state) {
             return;
         } else if (key == KEY_RESIZE) {
             printf("\033[2J");
-            rip_get_terminal_size(state);
-            rip_reflow_all(state);
+            some_get_terminal_size(state);
+            some_reflow_all(state);
             clamp_top(state);
             return;
         } else if (key >= 32 && key < 127 && len < 255) {
@@ -498,7 +498,7 @@ static void filter_prompt(rip_state_t *state) {
         return;
     }
     memcpy(state->filter_pattern, buf, len + 1);
-    rip_reflow_all(state);
+    some_reflow_all(state);
     state->top_line = 0;
     clamp_top(state);
     if (state->filter_pattern[0]) {
@@ -511,9 +511,9 @@ static void filter_prompt(rip_state_t *state) {
 /* ─────────────────────────────────────────────────────────────────────────── *
  *  Help screen                                                                *
  * ─────────────────────────────────────────────────────────────────────────── */
-static void show_help(rip_state_t *state) {
-    rip_state_t help_state;
-    rip_init_state(&help_state);
+static void show_help(some_state_t *state) {
+    some_state_t help_state;
+    some_init_state(&help_state);
 
     help_state.tty_fd = state->tty_fd;
     help_state.orig_termios = state->orig_termios;
@@ -525,7 +525,7 @@ static void show_help(rip_state_t *state) {
     help_state.is_stdin = 0;
 
     const char *help_lines[] = {
-        "rip — Read In Pager  (less++) Help",
+        "some — Scroll Or More Easily  (less++) Help",
         "",
         "NAVIGATION",
         "  j / ↓ / Enter    Scroll down 1 line (prefix N repeats)",
@@ -570,18 +570,18 @@ static void show_help(rip_state_t *state) {
 
     size_t num_lines = sizeof(help_lines) / sizeof(help_lines[0]);
     for (size_t i = 0; i < num_lines; i++) {
-        rip_add_raw_line(&help_state, help_lines[i], strlen(help_lines[i]));
+        some_add_raw_line(&help_state, help_lines[i], strlen(help_lines[i]));
         help_state.raw_lines[help_state.num_raw_lines - 1].byte_offset = help_state.file_size;
         help_state.file_size += strlen(help_lines[i]) + 1;
     }
 
-    rip_run(&help_state);
+    some_run(&help_state);
 
     help_state.raw_mode_enabled = 0;
-    rip_free_state(&help_state);
+    some_free_state(&help_state);
 }
 
-static size_t get_current_raw_line_num(rip_state_t *state) {
+static size_t get_current_raw_line_num(some_state_t *state) {
     if (state->num_display_lines == 0 || state->top_line >= state->num_display_lines) {
         return 1;
     }
@@ -594,7 +594,7 @@ static size_t get_current_raw_line_num(rip_state_t *state) {
     return state->num_raw_lines > 0 ? state->num_raw_lines : 1;
 }
 
-static void open_in_editor(rip_state_t *state) {
+static void open_in_editor(some_state_t *state) {
     if (!state->filename || strcmp(state->filename, "stdin") == 0 || strcmp(state->filename, "Help Screen") == 0) {
         snprintf(state->status_msg, sizeof(state->status_msg), "Cannot edit %s.", state->filename ? state->filename : "stdin");
         return;
@@ -606,7 +606,7 @@ static void open_in_editor(rip_state_t *state) {
         editor = getenv("EDITOR");
     }
 
-    rip_disable_raw_mode(state);
+    some_disable_raw_mode(state);
     printf("\n");
     fflush(stdout);
 
@@ -641,10 +641,10 @@ static void open_in_editor(rip_state_t *state) {
         }
     }
 
-    rip_enable_raw_mode(state);
+    some_enable_raw_mode(state);
     printf("\033[2J"); /* Clear editor screen remnants */
-    rip_get_terminal_size(state);
-    rip_reload(state);
+    some_get_terminal_size(state);
+    some_reload(state);
 
     if (!ok) {
         snprintf(state->status_msg, sizeof(state->status_msg),
@@ -652,14 +652,14 @@ static void open_in_editor(rip_state_t *state) {
     }
 }
 
-static void shell_command_prompt(rip_state_t *state) {
+static void shell_command_prompt(some_state_t *state) {
     char buf[512] = {0};
     int len = 0;
     printf("\033[%d;1H\033[K!", state->term_rows);
     fflush(stdout);
 
     while (1) {
-        int key = rip_read_key(state);
+        int key = some_read_key(state);
         if (key == '\n' || key == '\r') break;
         if (key == 127 || key == '\b') {
             if (len > 0) {
@@ -672,8 +672,8 @@ static void shell_command_prompt(rip_state_t *state) {
             break;
         } else if (key == KEY_RESIZE) {
             printf("\033[2J");
-            rip_get_terminal_size(state);
-            rip_reflow_all(state);
+            some_get_terminal_size(state);
+            some_reflow_all(state);
             clamp_top(state);
             len = 0;
             break;
@@ -686,14 +686,14 @@ static void shell_command_prompt(rip_state_t *state) {
     }
 
     if (len > 0) {
-        rip_disable_raw_mode(state);
+        some_disable_raw_mode(state);
         printf("\n");
         fflush(stdout);
 
         int status = system(buf);
         (void)status;
 
-        printf("\n[Press Enter to return to rip]\n");
+        printf("\n[Press Enter to return to some]\n");
         fflush(stdout);
 
         while (1) {
@@ -703,17 +703,17 @@ static void shell_command_prompt(rip_state_t *state) {
             }
         }
 
-        rip_enable_raw_mode(state);
+        some_enable_raw_mode(state);
         printf("\033[2J"); /* Clear command output remnants */
-        rip_get_terminal_size(state);
-        rip_reflow_all(state);
+        some_get_terminal_size(state);
+        some_reflow_all(state);
     }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── *
  *  Follow mode                                                                *
  * ─────────────────────────────────────────────────────────────────────────── */
-static void enter_follow_mode(rip_state_t *state) {
+static void enter_follow_mode(some_state_t *state) {
     if (!state->filename || strcmp(state->filename, "stdin") == 0 || strcmp(state->filename, "Help Screen") == 0) {
         snprintf(state->status_msg, sizeof(state->status_msg),
                  "Follow mode not available for %s", state->filename ? state->filename : "stdin");
@@ -746,15 +746,15 @@ static void enter_follow_mode(rip_state_t *state) {
             if (ll > 0 && line_buf[ll-1] == '\n') { line_buf[--ll] = '\0'; }
             if (ll > 0 && line_buf[ll-1] == '\r') { line_buf[--ll] = '\0'; }
             size_t old_size = state->file_size;
-            rip_add_raw_line(state, line_buf, ll);
+            some_add_raw_line(state, line_buf, ll);
             state->raw_lines[state->num_raw_lines - 1].byte_offset = old_size;
             state->file_size += ll + 1;
             got_new = 1;
         }
         if (got_new) {
-            rip_reflow_all(state);
+            some_reflow_all(state);
             state->top_line = get_max_top(state);
-            rip_render(state);
+            some_render(state);
         }
 
         /* Check for keypress (non-blocking) */
@@ -777,11 +777,11 @@ static void enter_follow_mode(rip_state_t *state) {
 /* ─────────────────────────────────────────────────────────────────────────── *
  *  Main pager event loop                                                      *
  * ─────────────────────────────────────────────────────────────────────────── */
-void rip_run(rip_state_t *state) {
-    rip_get_terminal_size(state);
-    rip_reflow_all(state);
-    rip_update_search_matches(state);
-    rip_render(state);
+void some_run(some_state_t *state) {
+    some_get_terminal_size(state);
+    some_reflow_all(state);
+    some_update_search_matches(state);
+    some_render(state);
 
     while (1) {
         struct pollfd fds[2];
@@ -802,11 +802,11 @@ void rip_run(rip_state_t *state) {
         if (ret < 0) {
             if (errno == EINTR) {
                 printf("\033[2J");
-                rip_get_terminal_size(state);
-                rip_reflow_all(state);
-                rip_update_search_matches(state);
+                some_get_terminal_size(state);
+                some_reflow_all(state);
+                some_update_search_matches(state);
                 clamp_top(state);
-                rip_render(state);
+                some_render(state);
                 continue;
             }
             break;
@@ -817,10 +817,10 @@ void rip_run(rip_state_t *state) {
             char buf[4096];
             ssize_t nr = read(STDIN_FILENO, buf, sizeof(buf));
             if (nr > 0) {
-                rip_append_stream_data(state, buf, nr);
-                rip_reflow_all(state);
-                /* Note: rip_reflow_all calls rip_update_search_matches internally */
-                rip_render(state);
+                some_append_stream_data(state, buf, nr);
+                some_reflow_all(state);
+                /* Note: some_reflow_all calls some_update_search_matches internally */
+                some_render(state);
             } else if (nr == 0) {
                 state->stdin_eof = 1;
             } else {
@@ -832,14 +832,14 @@ void rip_run(rip_state_t *state) {
 
         /* 2. Handle keyboard input */
         if (fds[tty_idx].revents & POLLIN) {
-            int key = rip_read_key(state);
+            int key = some_read_key(state);
             if (key == -1) break;
             if (key == KEY_RESIZE) {
                 printf("\033[2J");
-                rip_get_terminal_size(state);
-                rip_reflow_all(state);
+                some_get_terminal_size(state);
+                some_reflow_all(state);
                 clamp_top(state);
-                rip_render(state);
+                some_render(state);
                 continue;
             }
 
@@ -850,12 +850,12 @@ void rip_run(rip_state_t *state) {
             if (key >= '1' && key <= '9') {
                 if (state->num_prefix < 0) state->num_prefix = 0;
                 state->num_prefix = state->num_prefix * 10 + (key - '0');
-                rip_render(state);
+                some_render(state);
                 continue;
             }
             if (key == '0' && state->num_prefix >= 0) {
                 state->num_prefix = state->num_prefix * 10;
-                rip_render(state);
+                some_render(state);
                 continue;
             }
 
@@ -883,7 +883,7 @@ void rip_run(rip_state_t *state) {
             /* ── reload ── */
             case 'R':
                 if (strcmp(state->filename, "Help Screen") == 0) break;
-                rip_reload(state);
+                some_reload(state);
                 snprintf(state->status_msg, sizeof(state->status_msg), "File reloaded.");
                 break;
 
@@ -935,7 +935,7 @@ void rip_run(rip_state_t *state) {
             /* ── horizontal scroll (chop mode only) ── */
             case 'l': case KEY_ARROW_RIGHT:
                 if (!state->wrap_enabled) {
-                    int ln_width = rip_get_gutter_width(state);
+                    int ln_width = some_get_gutter_width(state);
                     int content_cols = state->term_cols - ln_width;
                     if (content_cols < 1) content_cols = 1;
                     int max_offset = state->max_line_width - content_cols;
@@ -953,7 +953,7 @@ void rip_run(rip_state_t *state) {
                 break;
             case ')':
                 if (!state->wrap_enabled) {
-                    int ln_width = rip_get_gutter_width(state);
+                    int ln_width = some_get_gutter_width(state);
                     int content_cols = state->term_cols - ln_width;
                     if (content_cols < 1) content_cols = 1;
                     int max_offset = state->max_line_width - content_cols;
@@ -991,8 +991,8 @@ void rip_run(rip_state_t *state) {
             case '\033':
                 state->search_pattern[0] = '\0';
                 state->filter_pattern[0] = '\0';
-                rip_reflow_all(state);
-                rip_update_search_matches(state);
+                some_reflow_all(state);
+                some_update_search_matches(state);
                 snprintf(state->status_msg, sizeof(state->status_msg), "Search and filter patterns cleared.");
                 break;
 
@@ -1009,7 +1009,7 @@ void rip_run(rip_state_t *state) {
             /* ── search options ── */
             case 'i':
                 state->search_case_insensitive ^= 1;
-                rip_update_search_matches(state);
+                some_update_search_matches(state);
                 snprintf(state->status_msg, sizeof(state->status_msg),
                          "Case-insensitive search: %s",
                          state->search_case_insensitive ? "ON" : "OFF");
@@ -1025,7 +1025,7 @@ void rip_run(rip_state_t *state) {
             case 'w': case 'W': {
                 state->wrap_enabled ^= 1;
                 state->horiz_offset = 0;
-                rip_reflow_all(state);
+                some_reflow_all(state);
                 clamp_top(state);
                 snprintf(state->status_msg, sizeof(state->status_msg),
                          "Word wrap: %s", state->wrap_enabled ? "ON" : "OFF");
@@ -1033,7 +1033,7 @@ void rip_run(rip_state_t *state) {
             }
             case 'L':
                 state->line_numbers ^= 1;
-                rip_reflow_all(state);
+                some_reflow_all(state);
                 clamp_top(state);
                 snprintf(state->status_msg, sizeof(state->status_msg),
                          "Line numbers: %s", state->line_numbers ? "ON" : "OFF");
@@ -1087,8 +1087,8 @@ void rip_run(rip_state_t *state) {
             /* ── terminal resize ── */
             case KEY_RESIZE:
                 printf("\033[2J");
-                rip_get_terminal_size(state);
-                rip_reflow_all(state);
+                some_get_terminal_size(state);
+                some_reflow_all(state);
                 clamp_top(state);
                 break;
 
@@ -1096,7 +1096,7 @@ void rip_run(rip_state_t *state) {
                 break;
             }
 
-            rip_render(state);
+            some_render(state);
         }
     }
 }

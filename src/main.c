@@ -1,15 +1,15 @@
-#include "rip.h"
+#include "some.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
 
-static rip_state_t state;
+static some_state_t state;
 
 static void handle_sigwinch(int sig) {
     (void)sig;
-    /* EINTR will wake rip_read_key which returns KEY_RESIZE */
+    /* EINTR will wake some_read_key which returns KEY_RESIZE */
 }
 
 static void handle_cleanup_signals(int sig) {
@@ -26,7 +26,7 @@ static void handle_cleanup_signals(int sig) {
 }
 
 static void print_help_cli(const char *prog) {
-    printf("rip — Read In Pager (less++)\n\n");
+    printf("some — Scroll Or More Easily (less++)\n\n");
     printf("Usage: %s [file]  or  command | %s\n\n", prog, prog);
     printf("Navigation:\n");
     printf("  j/↓/Enter        Scroll down 1 line (prefix N repeats)\n");
@@ -58,13 +58,13 @@ static void print_help_cli(const char *prog) {
     printf("  v                Open editor at current line\n");
     printf("  !cmd             Run shell command\n");
     printf("  F                Follow mode (tail -f style). q to exit.\n");
-    printf("  Ctrl+H           Help screen (inside rip)\n");
+    printf("  Ctrl+H           Help screen (inside some)\n");
     printf("  q / Q            Quit\n\n");
     printf("Status bar flags: [W]=wrap  [I]=icase  [#]=line-nums  [H]=hi-off  [F]=follow\n");
 }
 
 int main(int argc, char *argv[]) {
-    rip_init_state(&state);
+    some_init_state(&state);
 
     const char *filepath = NULL;
 
@@ -80,8 +80,8 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (rip_read_input(&state, filepath) != 0) {
-        rip_free_state(&state);
+    if (some_read_input(&state, filepath) != 0) {
+        some_free_state(&state);
         return 1;
     }
 
@@ -89,8 +89,8 @@ int main(int argc, char *argv[]) {
     signal(SIGTERM, handle_cleanup_signals);
     signal(SIGSEGV, handle_cleanup_signals);
 
-    if (rip_enable_raw_mode(&state) != 0) {
-        rip_free_state(&state);
+    if (some_enable_raw_mode(&state) != 0) {
+        some_free_state(&state);
         return 1;
     }
 
@@ -99,10 +99,10 @@ int main(int argc, char *argv[]) {
     sa.sa_handler = handle_sigwinch;
     sigaction(SIGWINCH, &sa, NULL);
 
-    rip_run(&state);
+    some_run(&state);
 
-    rip_disable_raw_mode(&state);
-    rip_free_state(&state);
+    some_disable_raw_mode(&state);
+    some_free_state(&state);
     fflush(stdout);
     return 0;
 }

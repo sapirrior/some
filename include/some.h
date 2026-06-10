@@ -1,10 +1,10 @@
-#ifndef RIP_H
-#define RIP_H
+#ifndef SOME_H
+#define SOME_H
 
 #include <stddef.h>
 #include <termios.h>
 
-enum rip_key {
+enum some_key {
     KEY_ARROW_UP = 1000,
     KEY_ARROW_DOWN,
     KEY_ARROW_LEFT,
@@ -21,15 +21,15 @@ typedef struct {
     size_t len;
     size_t byte_offset;
     size_t raw_line_idx;
-} rip_line_t;
+} some_line_t;
 
 typedef struct {
     /* ── Raw & display line buffers ── */
-    rip_line_t *raw_lines;
+    some_line_t *raw_lines;
     size_t num_raw_lines;
     size_t raw_lines_capacity;
 
-    rip_line_t *display_lines;
+    some_line_t *display_lines;
     size_t num_display_lines;
     size_t display_lines_capacity;
 
@@ -78,34 +78,34 @@ typedef struct {
     /* ── Incremental loading state ── */
     int stdin_eof;
     int raw_last_has_newline;
-} rip_state_t;
+} some_state_t;
 
 /* Init / cleanup */
-void rip_init_state(rip_state_t *state);
-void rip_free_state(rip_state_t *state);
+void some_init_state(some_state_t *state);
+void some_free_state(some_state_t *state);
 
 /* Input */
-int  rip_read_input(rip_state_t *state, const char *path);
-int  rip_reload(rip_state_t *state);
-void rip_add_raw_line(rip_state_t *state, const char *data, size_t len);
-void rip_append_stream_data(rip_state_t *state, const char *buf, size_t len);
-void rip_update_search_matches(rip_state_t *state);
+int  some_read_input(some_state_t *state, const char *path);
+int  some_reload(some_state_t *state);
+void some_add_raw_line(some_state_t *state, const char *data, size_t len);
+void some_append_stream_data(some_state_t *state, const char *buf, size_t len);
+void some_update_search_matches(some_state_t *state);
 
 /* Reflow */
-void rip_reflow_all(rip_state_t *state);
-void rip_add_display_line(rip_state_t *state, const char *data, size_t len, size_t raw_line_idx);
-int  rip_get_gutter_width(rip_state_t *state);
+void some_reflow_all(some_state_t *state);
+void some_add_display_line(some_state_t *state, const char *data, size_t len, size_t raw_line_idx);
+int  some_get_gutter_width(some_state_t *state);
 
 /* Terminal */
-int  rip_enable_raw_mode(rip_state_t *state);
-void rip_disable_raw_mode(rip_state_t *state);
-void rip_get_terminal_size(rip_state_t *state);
-int  rip_read_key(rip_state_t *state);
-int  rip_decode_utf8(const char *str, size_t len, unsigned int *ch);
-int  rip_char_width(unsigned int ch, int visual_col);
+int  some_enable_raw_mode(some_state_t *state);
+void some_disable_raw_mode(some_state_t *state);
+void some_get_terminal_size(some_state_t *state);
+int  some_read_key(some_state_t *state);
+int  some_decode_utf8(const char *str, size_t len, unsigned int *ch);
+int  some_char_width(unsigned int ch, int visual_col);
 
 /* Pager */
-void rip_render(rip_state_t *state);
-void rip_run(rip_state_t *state);
+void some_render(some_state_t *state);
+void some_run(some_state_t *state);
 
-#endif /* RIP_H */
+#endif /* SOME_H */
