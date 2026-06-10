@@ -139,6 +139,7 @@ static void wrap_line(some_state_t *state, const char *line, size_t len, int wid
 
     size_t byte_off = 0;
     int first_line = 1;
+    char active_ansi[128] = "";
 
     while (byte_off < len) {
         /* Determine how many columns we have for this segment */
@@ -176,55 +177,93 @@ static void wrap_line(some_state_t *state, const char *line, size_t len, int wid
             scan_byte += clen;
         }
 
-        /* If we reached the end of the line, wrap it all */
-        if (scan_byte >= len) {
-            size_t segment_len = len - byte_off;
-            if (first_line) {
-                some_add_display_line(state, line + byte_off, segment_len, raw_line_idx);
-                state->display_lines[state->num_display_lines - 1].byte_offset = raw_offset + byte_off;
-            } else {
-                char *buf = malloc(indent_bytes + segment_len + 1);
-                memcpy(buf, indent_str, indent_bytes);
-                memcpy(buf + indent_bytes, line + byte_off, segment_len);
-                buf[indent_bytes + segment_len] = '\0';
-                some_add_display_line(state, buf, indent_bytes + segment_len, raw_line_idx);
-                state->display_lines[state->num_display_lines - 1].byte_offset = raw_offset + byte_off;
-                free(buf);
-            }
-            break;
-        }
-
-        /* Otherwise, we need to split. Try splitting at the last space */
         size_t split_byte = 0;
-        if (last_space_byte > byte_off) {
-            split_byte = last_space_byte;
+        if (scan_byte >= len) {
+            split_byte = len;
         } else {
-            split_byte = scan_byte;
-        }
+            /* Otherwise, we need to split. Try splitting at the last space */
+            if (last_space_byte > byte_off) {
+                split_byte = last_space_byte;
+            } else {
+                split_byte = scan_byte;
+            }
 
-        /* Prevent infinite loop if no characters fit */
-        if (split_byte == byte_off) {
-            unsigned int ch;
-            split_byte += some_decode_utf8(line + byte_off, len - byte_off, &ch);
+            /* Prevent infinite loop if no characters fit */
+            if (split_byte == byte_off) {
+                unsigned int ch;
+                split_byte += some_decode_utf8(line + byte_off, len - byte_off, &ch);
+            }
         }
 
         size_t segment_len = split_byte - byte_off;
-        if (first_line) {
-            some_add_display_line(state, line + byte_off, segment_len, raw_line_idx);
-            state->display_lines[state->num_display_lines - 1].byte_offset = raw_offset + byte_off;
-            first_line = 0;
-        } else {
-            char *buf = malloc(indent_bytes + segment_len + 1);
-            memcpy(buf, indent_str, indent_bytes);
-            memcpy(buf + indent_bytes, line + byte_off, segment_len);
-            buf[indent_bytes + segment_len] = '\0';
-            some_add_display_line(state, buf, indent_bytes + segment_len, raw_line_idx);
-            state->display_lines[state->num_display_lines - 1].byte_offset = raw_offset + byte_off;
-            free(buf);
+
+        // Traverse segment to update running active_ansi state
+        size_t traverse = byte_off;
+        while (traverse < split_byte) {
+            if (line[traverse] == '\033' && traverse + 1 < split_byte && line[traverse + 1] == '[') {
+                size_t esc_start = traverse;
+                traverse += 2;
+                while (traverse < split_byte && !(line[traverse] >= 64 && line[traverse] <= 126)) {
+                    traverse++;
+                }
+                if (traverse < split_byte) {
+                    traverse++;
+                }
+                size_t esc_len = traverse - esc_start;
+                if (esc_len < sizeof(active_ansi)) {
+                    if (esc_len == 4 && strncmp(line + esc_start, "\033[0m", 4) == 0) {
+                        active_ansi[0] = '\0';
+                    } else if (line[traverse - 1] == 'm') {
+                        memcpy(active_ansi, line + esc_start, esc_len);
+                        active_ansi[esc_len] = '\0';
+                    }
+                }
+            } else {
+                traverse++;
+            }
         }
 
+        // Build new display line string
+        size_t prefix_len = first_line ? 0 : indent_bytes;
+        size_t ansi_len = active_ansi[0] ? strlen(active_ansi) : 0;
+        size_t reset_len = active_ansi[0] ? 4 : 0; // \033[0m is 4 bytes
+
+        size_t total_len = prefix_len + ansi_len + segment_len + reset_len;
+        char *buf = malloc(total_len + 1);
+        char *p = buf;
+
+        // 1. Prepend indent if not first line
+        if (prefix_len) {
+            memcpy(p, indent_str, prefix_len);
+            p += prefix_len;
+        }
+
+        // 2. Prepend active ANSI escape if any
+        if (ansi_len) {
+            memcpy(p, active_ansi, ansi_len);
+            p += ansi_len;
+        }
+
+        // 3. Copy segment text
+        memcpy(p, line + byte_off, segment_len);
+        p += segment_len;
+
+        // 4. Append reset code if we prepended an active ANSI escape
+        if (reset_len) {
+            memcpy(p, "\033[0m", 4);
+            p += 4;
+        }
+
+        *p = '\0';
+
+        some_add_display_line(state, buf, total_len, raw_line_idx);
+        state->display_lines[state->num_display_lines - 1].byte_offset = raw_offset + byte_off;
+        free(buf);
+
+        first_line = 0;
         byte_off = split_byte;
-        /* skip trailing spaces/tabs after split point to avoid leading spaces on wrapped line */
+
+        /* Skip trailing spaces/tabs after split point to avoid leading spaces on wrapped line */
         while (byte_off < len) {
             unsigned int ch;
             int clen = some_decode_utf8(line + byte_off, len - byte_off, &ch);
