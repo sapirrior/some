@@ -13,6 +13,7 @@ typedef enum {
     AST_NODE_PREPROCESSOR,
     AST_NODE_IDENTIFIER,
     AST_NODE_OPERATOR,
+    AST_NODE_FUNCTION,      // for functions/classes
     AST_NODE_ADDITION,      // for diff +
     AST_NODE_DELETION,      // for diff -
     AST_NODE_META,          // for diff @

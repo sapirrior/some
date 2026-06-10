@@ -50,13 +50,12 @@ char* ast_highlight_stream(ast_node_t *head, size_t *out_len) {
             const char *esc = NULL;
             switch (curr->type) {
                 case AST_NODE_KEYWORD:      esc = "\033[38;2;255;123;114m"; break; // #ff7b72
-                case AST_NODE_TYPE:         esc = "\033[38;2;126;231;135m"; break; // #7ee787
+                case AST_NODE_TYPE:         esc = "\033[38;2;255;123;114m"; break; // #ff7b72
                 case AST_NODE_STRING:       esc = "\033[38;2;165;214;255m"; break; // #a5d6ff
                 case AST_NODE_COMMENT:      esc = "\033[38;2;139;148;158m"; break; // #8b949e
                 case AST_NODE_NUMBER:       esc = "\033[38;2;121;192;255m"; break; // #79c0ff
-                case AST_NODE_PREPROCESSOR: esc = "\033[38;2;210;168;255m"; break; // #d2a8ff
-                case AST_NODE_OPERATOR:     esc = "\033[38;2;126;231;135m"; break; // #7ee787
-                case AST_NODE_IDENTIFIER:   esc = "\033[38;2;255;166;87m";  break; // #ffa657
+                case AST_NODE_PREPROCESSOR: esc = "\033[38;2;255;123;114m"; break; // #ff7b72
+                case AST_NODE_FUNCTION:     esc = "\033[38;2;210;168;255m"; break; // #d2a8ff
                 case AST_NODE_ADDITION:     esc = "\033[38;2;126;231;135m"; break; // #7ee787
                 case AST_NODE_DELETION:     esc = "\033[38;2;255;123;114m"; break; // #ff7b72
                 case AST_NODE_META:         esc = "\033[38;2;210;168;255m"; break; // #d2a8ff

@@ -123,6 +123,14 @@ ast_node_t* parse_c_to_ast(const char *input, size_t input_len) {
                 type = AST_NODE_KEYWORD;
             } else if (is_c_type(input + id_start, id_len)) {
                 type = AST_NODE_TYPE;
+            } else {
+                size_t next_idx = i;
+                while (next_idx < input_len && isspace((unsigned char)input[next_idx])) {
+                    next_idx++;
+                }
+                if (next_idx < input_len && input[next_idx] == '(') {
+                    type = AST_NODE_FUNCTION;
+                }
             }
             ast_node_t *node = ast_create_node(type, input + id_start, id_len);
             if (!head) head = node; else tail->next = node;
