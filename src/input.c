@@ -164,6 +164,7 @@ void some_reflow_all(some_state_t *state) {
 
     int ln_width = some_get_gutter_width(state);
     int wrap_width = state->term_cols - ln_width;
+    if (state->wrap_enabled && wrap_width > 1) wrap_width--;
     if (wrap_width < 1) wrap_width = 1;
 
     regex_t filter_re;

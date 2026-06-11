@@ -381,6 +381,7 @@ void some_render(some_state_t *state) {
     int ln_width = some_get_gutter_width(state);
 
     int content_cols = state->term_cols - ln_width;
+    if (state->wrap_enabled && content_cols > 1) content_cols--;
     if (content_cols < 1) content_cols = 1;
 
     for (int r = 0; r < text_rows; r++) {
