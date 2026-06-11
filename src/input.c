@@ -115,6 +115,12 @@ void some_add_display_line(some_state_t *state, const char *data, size_t len, si
 static void wrap_line(some_state_t *state, const char *line, size_t len, int width, size_t raw_offset, size_t raw_line_idx) {
     if (width <= 0) width = 80;
 
+    if (len == 0) {
+        some_add_display_line(state, "", 0, raw_line_idx);
+        state->display_lines[state->num_display_lines - 1].byte_offset = raw_offset;
+        return;
+    }
+
     size_t byte_off = 0;
     while (byte_off < len) {
         int max_cols = width;
