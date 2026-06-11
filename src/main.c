@@ -14,9 +14,9 @@ static void handle_sigwinch(int sig) {
 
 static void handle_cleanup_signals(int sig) {
     if (state.raw_mode_enabled) {
-        /* Restore alternate screen buffer cleanly using async-signal-safe write */
-        const char *esc_restore = "\033[?1049l";
-        (void)write(STDOUT_FILENO, esc_restore, 8);
+        /* Restore alternate screen buffer cleanly and show cursor using async-signal-safe write */
+        const char *esc_restore = "\033[?1049l\033[?25h";
+        (void)write(STDOUT_FILENO, esc_restore, 14);
 
         /* Restore raw terminal configurations */
         tcsetattr(state.tty_fd, TCSAFLUSH, &state.orig_termios);

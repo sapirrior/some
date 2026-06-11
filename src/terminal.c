@@ -52,8 +52,8 @@ int some_enable_raw_mode(some_state_t *state) {
 void some_disable_raw_mode(some_state_t *state) {
     if (!state->raw_mode_enabled) return;
 
-    // Restore original screen buffer
-    printf("\033[?1049l");
+    // Restore original screen buffer and show cursor
+    printf("\033[?1049l\033[?25h");
     fflush(stdout);
 
     tcsetattr(state->tty_fd, TCSAFLUSH, &state->orig_termios);

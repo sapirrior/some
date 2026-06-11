@@ -460,7 +460,6 @@ void some_render(some_state_t *state) {
     if (has_re) regfree(&re);
 
     render_status(state);
-    printf("\033[?25h");
     fflush(stdout);
 }
 
@@ -542,7 +541,8 @@ static void search_prompt(some_state_t *state, int forward) {
     int  hist_idx = state->search_history_count;
     char temp_typed[256] = {0};
 
-    printf("\033[%d;1H\033[K%c", state->term_rows, ch);
+    /* Show cursor during input prompt */
+    printf("\033[%d;1H\033[K%c\033[?25h", state->term_rows, ch);
     fflush(stdout);
 
     while (1) {
@@ -627,7 +627,8 @@ static void filter_prompt(some_state_t *state) {
     int  hist_idx = state->filter_history_count;
     char temp_typed[256] = {0};
 
-    printf("\033[%d;1H\033[K&", state->term_rows);
+    /* Show cursor during input prompt */
+    printf("\033[%d;1H\033[K&\033[?25h", state->term_rows);
     fflush(stdout);
 
     while (1) {
