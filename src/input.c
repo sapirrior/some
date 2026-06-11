@@ -115,27 +115,12 @@ void some_add_display_line(some_state_t *state, const char *data, size_t len, si
 static void wrap_line(some_state_t *state, const char *line, size_t len, int width, size_t raw_offset, size_t raw_line_idx) {
     if (width <= 0) width = 80;
 
-    /* Measure indent: count bytes and columns of leading whitespace */
     size_t indent_bytes = 0;
     int indent_cols = 0;
-    while (indent_bytes < len) {
-        unsigned int ch;
-        int clen = some_decode_utf8(line + indent_bytes, len - indent_bytes, &ch);
-        if (ch == ' ') {
-            indent_cols += 1;
-            indent_bytes += clen;
-        } else if (ch == '\t') {
-            indent_cols += some_char_width(ch, indent_cols);
-            indent_bytes += clen;
-        } else {
-            break;
-        }
-    }
 
     /* We keep indent string to prepend to subsequent lines */
-    char *indent_str = malloc(indent_bytes + 1);
-    memcpy(indent_str, line, indent_bytes);
-    indent_str[indent_bytes] = '\0';
+    char *indent_str = malloc(1);
+    indent_str[0] = '\0';
 
     size_t byte_off = 0;
     int first_line = 1;
@@ -148,7 +133,6 @@ static void wrap_line(some_state_t *state, const char *line, size_t len, int wid
         /* Walk forward to find the split point (by columns) */
         size_t scan_byte = byte_off;
         int current_cols = 0;
-        size_t last_space_byte = 0;
 
         while (scan_byte < len) {
             if (line[scan_byte] == '\033' && scan_byte + 1 < len && line[scan_byte + 1] == '[') {
@@ -169,30 +153,16 @@ static void wrap_line(some_state_t *state, const char *line, size_t len, int wid
                 break;
             }
 
-            if (ch == ' ' || ch == '\t') {
-                last_space_byte = scan_byte;
-            }
-
             current_cols += w;
             scan_byte += clen;
         }
 
-        size_t split_byte = 0;
-        if (scan_byte >= len) {
-            split_byte = len;
-        } else {
-            /* Otherwise, we need to split. Try splitting at the last space */
-            if (last_space_byte > byte_off) {
-                split_byte = last_space_byte;
-            } else {
-                split_byte = scan_byte;
-            }
+        size_t split_byte = scan_byte;
 
-            /* Prevent infinite loop if no characters fit */
-            if (split_byte == byte_off) {
-                unsigned int ch;
-                split_byte += some_decode_utf8(line + byte_off, len - byte_off, &ch);
-            }
+        /* Prevent infinite loop if no characters fit */
+        if (split_byte == byte_off) {
+            unsigned int ch;
+            split_byte += some_decode_utf8(line + byte_off, len - byte_off, &ch);
         }
 
         size_t segment_len = split_byte - byte_off;
@@ -262,17 +232,6 @@ static void wrap_line(some_state_t *state, const char *line, size_t len, int wid
 
         first_line = 0;
         byte_off = split_byte;
-
-        /* Skip trailing spaces/tabs after split point to avoid leading spaces on wrapped line */
-        while (byte_off < len) {
-            unsigned int ch;
-            int clen = some_decode_utf8(line + byte_off, len - byte_off, &ch);
-            if (ch == ' ' || ch == '\t') {
-                byte_off += clen;
-            } else {
-                break;
-            }
-        }
     }
 
     free(indent_str);
