@@ -414,6 +414,53 @@ char* ast_convert(const char *filename, const char *input, size_t input_len, siz
     return dest;
 }
 
+char* ast_highlight_line(const char *filename, const char *input, size_t input_len, syntax_state_t *state, size_t *out_len) {
+    if (!filename) return NULL;
+
+    const syntax_def_t* def = NULL;
+    const char *ext = strrchr(filename, '.');
+    if (ext) {
+        if (strcmp(ext, ".json") == 0) def = get_json_syntax_def();
+        else if (strcmp(ext, ".csv") == 0) def = get_csv_syntax_def();
+        else if (strcmp(ext, ".tsv") == 0) def = get_tsv_syntax_def();
+        else if (strcmp(ext, ".xml") == 0 || strcmp(ext, ".html") == 0 || strcmp(ext, ".xhtml") == 0) def = get_xml_syntax_def();
+        else if (strcmp(ext, ".diff") == 0 || strcmp(ext, ".patch") == 0) def = get_diff_syntax_def();
+        else if (strcmp(ext, ".c") == 0 || strcmp(ext, ".h") == 0 || strcmp(ext, ".cpp") == 0 || strcmp(ext, ".hpp") == 0) def = get_c_syntax_def();
+        else if (strcmp(ext, ".log") == 0) def = get_log_syntax_def();
+        else if (strcmp(ext, ".py") == 0) def = get_py_syntax_def();
+        else if (strcmp(ext, ".js") == 0 || strcmp(ext, ".mjs") == 0 || strcmp(ext, ".cjs") == 0 ||
+                 strcmp(ext, ".ts") == 0 || strcmp(ext, ".jsx") == 0 || strcmp(ext, ".tsx") == 0) {
+            def = get_js_syntax_def();
+        }
+    }
+
+    if (!def) {
+        size_t si = 0;
+        while (si < input_len && (input[si] == ' ' || input[si] == '\t')) si++;
+        if (si < input_len && (input[si] == '{' || input[si] == '[')) {
+            def = get_json_syntax_def();
+        } else if (si < input_len && input[si] == '<') {
+            def = get_xml_syntax_def();
+        } else {
+            def = get_txt_syntax_def();
+        }
+    }
+
+    size_t cap = 1024;
+    char *dest = malloc(cap);
+    size_t di = 0;
+
+    if (def->highlight_fn) {
+        def->highlight_fn(input, input_len, state, &dest, &di, &cap);
+    } else {
+        highlight_line(input, input_len, def, state, &dest, &di, &cap);
+    }
+    dest[di] = '\0';
+    *out_len = di;
+
+    return dest;
+}
+
 void ast_highlight_display_lines(void *some_state_ptr) {
     some_state_t *state = (some_state_t *)some_state_ptr;
     if (!state->syntax_highlighting || !state->filename || state->num_display_lines == 0) return;

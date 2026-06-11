@@ -30,6 +30,7 @@ typedef struct {
 
 char* ast_convert(const char *filename, const char *input, size_t input_len, size_t *out_len, int enable_colors);
 
+char* ast_highlight_line(const char *filename, const char *input, size_t input_len, syntax_state_t *state, size_t *out_len);
 void ast_highlight_display_lines(void *some_state_ptr);
 
 // Syntax definitions declarations
