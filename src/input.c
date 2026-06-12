@@ -121,12 +121,46 @@ static void wrap_line(some_state_t *state, const char *line, size_t len, int wid
         return;
     }
 
+    // Determine leading visual indentation of the raw line
+    int visual_indent_cols = 0;
+    size_t indent_bytes = 0;
+    while (indent_bytes < len) {
+        if (line[indent_bytes] == ' ') {
+            visual_indent_cols += 1;
+            indent_bytes++;
+        } else if (line[indent_bytes] == '\t') {
+            visual_indent_cols = (visual_indent_cols + 4) & ~3;
+            indent_bytes++;
+        } else {
+            break;
+        }
+    }
+
+    // Limit indentation to half of the wrap width
+    if (visual_indent_cols > width / 2) {
+        visual_indent_cols = width / 2;
+    }
+
+    // Construct indentation padding string
+    char *indent_str = malloc(visual_indent_cols + 1);
+    for (int i = 0; i < visual_indent_cols; i++) {
+        indent_str[i] = ' ';
+    }
+    indent_str[visual_indent_cols] = '\0';
+
+    int effective_width = width - visual_indent_cols;
+    if (effective_width < 20) {
+        effective_width = 20;
+        if (effective_width > width) effective_width = width;
+    }
+
     size_t byte_off = 0;
     while (byte_off < len) {
-        int max_cols = width;
+        int max_cols = (byte_off == 0) ? width : effective_width;
 
         size_t scan_byte = byte_off;
         int current_cols = 0;
+        size_t last_space_byte = 0;
 
         while (scan_byte < len) {
             unsigned int ch;
@@ -137,11 +171,21 @@ static void wrap_line(some_state_t *state, const char *line, size_t len, int wid
                 break;
             }
 
+            // Word boundaries
+            if (ch == ' ' || ch == '-' || ch == '\t') {
+                last_space_byte = scan_byte + clen;
+            }
+
             current_cols += w;
             scan_byte += clen;
         }
 
         size_t split_byte = scan_byte;
+        if (scan_byte < len) {
+            if (last_space_byte > byte_off) {
+                split_byte = last_space_byte;
+            }
+        }
 
         if (split_byte == byte_off) {
             unsigned int ch;
@@ -151,11 +195,26 @@ static void wrap_line(some_state_t *state, const char *line, size_t len, int wid
 
         size_t segment_len = split_byte - byte_off;
 
-        some_add_display_line(state, line + byte_off, segment_len, raw_line_idx);
-        state->display_lines[state->num_display_lines - 1].byte_offset = raw_offset + byte_off;
+        if (byte_off == 0) {
+            // First segment: original indent already present
+            some_add_display_line(state, line + byte_off, segment_len, raw_line_idx);
+        } else {
+            // Subsequent segments: prepend visual_indent_cols spaces
+            size_t wrapped_len = segment_len + visual_indent_cols;
+            char *wrapped_line = malloc(wrapped_len + 1);
+            memcpy(wrapped_line, indent_str, visual_indent_cols);
+            memcpy(wrapped_line + visual_indent_cols, line + byte_off, segment_len);
+            wrapped_line[wrapped_len] = '\0';
 
+            some_add_display_line(state, wrapped_line, wrapped_len, raw_line_idx);
+            free(wrapped_line);
+        }
+
+        state->display_lines[state->num_display_lines - 1].byte_offset = raw_offset + byte_off;
         byte_off = split_byte;
     }
+
+    free(indent_str);
 }
 
 void some_reflow_all(some_state_t *state) {
