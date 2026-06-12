@@ -44,6 +44,18 @@ const syntax_def_t* get_diff_syntax_def(void);
 const syntax_def_t* get_log_syntax_def(void);
 const syntax_def_t* get_txt_syntax_def(void);
 const syntax_def_t* get_js_syntax_def(void);
+const syntax_def_t* get_rs_syntax_def(void);
+const syntax_def_t* get_go_syntax_def(void);
+const syntax_def_t* get_sql_syntax_def(void);
+const syntax_def_t* get_sh_syntax_def(void);
+const syntax_def_t* get_yaml_syntax_def(void);
+const syntax_def_t* get_md_syntax_def(void);
+const syntax_def_t* get_java_syntax_def(void);
+const syntax_def_t* get_cs_syntax_def(void);
+const syntax_def_t* get_rb_syntax_def(void);
+const syntax_def_t* get_php_syntax_def(void);
+const syntax_def_t* get_css_syntax_def(void);
+const syntax_def_t* get_html_syntax_def(void);
 
 // Provide helper to append directly to a string buffer
 void ast_append_char(char **dest, size_t *di, size_t *cap, char c);

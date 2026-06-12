@@ -158,17 +158,59 @@ void highlight_line(const char *input, size_t input_len, const syntax_def_t *def
             continue;
         }
 
-        if (state->context == 6) { // xml tag
-            size_t start = i;
-            while (i < input_len) {
+        if (state->context == 6) { // xml/html tag
+            int is_first_word = 1;
+            while (i < input_len && state->context == 6) {
                 if (input[i] == '>') {
+                    write_colored_text(input + i, 1, "\033[38;2;139;148;158m", dest, di, cap); // gray '>'
                     i++;
                     state->context = 0;
                     break;
                 }
-                i++;
+                if (input[i] == '/' || input[i] == '?') {
+                    write_colored_text(input + i, 1, "\033[38;2;139;148;158m", dest, di, cap); // gray '/' or '?'
+                    i++;
+                    continue;
+                }
+                if (isspace((unsigned char)input[i])) {
+                    ast_append_char(dest, di, cap, input[i++]);
+                    continue;
+                }
+                if (input[i] == '"' || input[i] == '\'') {
+                    char q = input[i];
+                    size_t s_start = i;
+                    i++;
+                    while (i < input_len && input[i] != q) {
+                        if (input[i] == '\\' && i + 1 < input_len) i += 2;
+                        else i++;
+                    }
+                    if (i < input_len) i++;
+                    write_colored_text(input + s_start, i - s_start, "\033[38;2;165;214;255m", dest, di, cap); // light blue string
+                    is_first_word = 0;
+                    continue;
+                }
+                if (input[i] == '=') {
+                    write_colored_text(input + i, 1, "\033[38;2;255;123;114m", dest, di, cap); // red '='
+                    i++;
+                    is_first_word = 0;
+                    continue;
+                }
+                if (isalnum((unsigned char)input[i]) || input[i] == '-' || input[i] == ':' || input[i] == '_') {
+                    size_t w_start = i;
+                    while (i < input_len && (isalnum((unsigned char)input[i]) || input[i] == '-' || input[i] == ':' || input[i] == '_')) {
+                        i++;
+                    }
+                    size_t w_len = i - w_start;
+                    if (is_first_word) {
+                        write_colored_text(input + w_start, w_len, "\033[38;2;121;192;255m", dest, di, cap); // tag name: bright blue
+                        is_first_word = 0;
+                    } else {
+                        write_colored_text(input + w_start, w_len, "\033[38;2;210;168;255m", dest, di, cap); // attribute: purple
+                    }
+                    continue;
+                }
+                ast_append_char(dest, di, cap, input[i++]);
             }
-            write_colored_text(input + start, i - start, NULL, dest, di, cap);
             continue;
         }
 
@@ -243,7 +285,7 @@ void highlight_line(const char *input, size_t input_len, const syntax_def_t *def
             }
             if (input[i] == '<') {
                 state->context = 6;
-                write_colored_text(input + i, 1, NULL, dest, di, cap);
+                write_colored_text(input + i, 1, "\033[38;2;139;148;158m", dest, di, cap); // gray '<'
                 i++;
                 continue;
             }
@@ -354,24 +396,42 @@ void highlight_line(const char *input, size_t input_len, const syntax_def_t *def
     }
 }
 
+static const syntax_def_t* get_syntax_def_from_ext(const char *ext) {
+    if (!ext) return NULL;
+    if (strcmp(ext, ".json") == 0) return get_json_syntax_def();
+    if (strcmp(ext, ".csv") == 0) return get_csv_syntax_def();
+    if (strcmp(ext, ".tsv") == 0) return get_tsv_syntax_def();
+    if (strcmp(ext, ".xml") == 0 || strcmp(ext, ".xhtml") == 0) return get_xml_syntax_def();
+    if (strcmp(ext, ".html") == 0 || strcmp(ext, ".htm") == 0) return get_html_syntax_def();
+    if (strcmp(ext, ".diff") == 0 || strcmp(ext, ".patch") == 0) return get_diff_syntax_def();
+    if (strcmp(ext, ".c") == 0 || strcmp(ext, ".h") == 0 || strcmp(ext, ".cpp") == 0 || strcmp(ext, ".hpp") == 0) return get_c_syntax_def();
+    if (strcmp(ext, ".log") == 0) return get_log_syntax_def();
+    if (strcmp(ext, ".py") == 0) return get_py_syntax_def();
+    if (strcmp(ext, ".js") == 0 || strcmp(ext, ".mjs") == 0 || strcmp(ext, ".cjs") == 0 ||
+        strcmp(ext, ".ts") == 0 || strcmp(ext, ".jsx") == 0 || strcmp(ext, ".tsx") == 0) {
+        return get_js_syntax_def();
+    }
+    if (strcmp(ext, ".rs") == 0) return get_rs_syntax_def();
+    if (strcmp(ext, ".go") == 0) return get_go_syntax_def();
+    if (strcmp(ext, ".sql") == 0) return get_sql_syntax_def();
+    if (strcmp(ext, ".sh") == 0 || strcmp(ext, ".bash") == 0 || strcmp(ext, ".zsh") == 0) return get_sh_syntax_def();
+    if (strcmp(ext, ".yaml") == 0 || strcmp(ext, ".yml") == 0 || strcmp(ext, ".toml") == 0) return get_yaml_syntax_def();
+    if (strcmp(ext, ".md") == 0 || strcmp(ext, ".markdown") == 0) return get_md_syntax_def();
+    if (strcmp(ext, ".java") == 0) return get_java_syntax_def();
+    if (strcmp(ext, ".cs") == 0) return get_cs_syntax_def();
+    if (strcmp(ext, ".rb") == 0) return get_rb_syntax_def();
+    if (strcmp(ext, ".php") == 0) return get_php_syntax_def();
+    if (strcmp(ext, ".css") == 0) return get_css_syntax_def();
+    return NULL;
+}
+
 char* ast_convert(const char *filename, const char *input, size_t input_len, size_t *out_len, int enable_colors) {
     if (!filename) return NULL;
 
     const syntax_def_t* def = NULL;
     const char *ext = strrchr(filename, '.');
     if (ext) {
-        if (strcmp(ext, ".json") == 0) def = get_json_syntax_def();
-        else if (strcmp(ext, ".csv") == 0) def = get_csv_syntax_def();
-        else if (strcmp(ext, ".tsv") == 0) def = get_tsv_syntax_def();
-        else if (strcmp(ext, ".xml") == 0 || strcmp(ext, ".html") == 0 || strcmp(ext, ".xhtml") == 0) def = get_xml_syntax_def();
-        else if (strcmp(ext, ".diff") == 0 || strcmp(ext, ".patch") == 0) def = get_diff_syntax_def();
-        else if (strcmp(ext, ".c") == 0 || strcmp(ext, ".h") == 0 || strcmp(ext, ".cpp") == 0 || strcmp(ext, ".hpp") == 0) def = get_c_syntax_def();
-        else if (strcmp(ext, ".log") == 0) def = get_log_syntax_def();
-        else if (strcmp(ext, ".py") == 0) def = get_py_syntax_def();
-        else if (strcmp(ext, ".js") == 0 || strcmp(ext, ".mjs") == 0 || strcmp(ext, ".cjs") == 0 ||
-                 strcmp(ext, ".ts") == 0 || strcmp(ext, ".jsx") == 0 || strcmp(ext, ".tsx") == 0) {
-            def = get_js_syntax_def();
-        }
+        def = get_syntax_def_from_ext(ext);
     }
 
     if (!def) {
@@ -436,18 +496,7 @@ char* ast_highlight_line(const char *filename, const char *input, size_t input_l
     const syntax_def_t* def = NULL;
     const char *ext = strrchr(filename, '.');
     if (ext) {
-        if (strcmp(ext, ".json") == 0) def = get_json_syntax_def();
-        else if (strcmp(ext, ".csv") == 0) def = get_csv_syntax_def();
-        else if (strcmp(ext, ".tsv") == 0) def = get_tsv_syntax_def();
-        else if (strcmp(ext, ".xml") == 0 || strcmp(ext, ".html") == 0 || strcmp(ext, ".xhtml") == 0) def = get_xml_syntax_def();
-        else if (strcmp(ext, ".diff") == 0 || strcmp(ext, ".patch") == 0) def = get_diff_syntax_def();
-        else if (strcmp(ext, ".c") == 0 || strcmp(ext, ".h") == 0 || strcmp(ext, ".cpp") == 0 || strcmp(ext, ".hpp") == 0) def = get_c_syntax_def();
-        else if (strcmp(ext, ".log") == 0) def = get_log_syntax_def();
-        else if (strcmp(ext, ".py") == 0) def = get_py_syntax_def();
-        else if (strcmp(ext, ".js") == 0 || strcmp(ext, ".mjs") == 0 || strcmp(ext, ".cjs") == 0 ||
-                 strcmp(ext, ".ts") == 0 || strcmp(ext, ".jsx") == 0 || strcmp(ext, ".tsx") == 0) {
-            def = get_js_syntax_def();
-        }
+        def = get_syntax_def_from_ext(ext);
     }
 
     if (!def) {
@@ -484,18 +533,7 @@ void ast_highlight_display_lines(void *some_state_ptr) {
     const syntax_def_t* def = NULL;
     const char *ext = strrchr(state->filename, '.');
     if (ext) {
-        if (strcmp(ext, ".json") == 0) def = get_json_syntax_def();
-        else if (strcmp(ext, ".csv") == 0) def = get_csv_syntax_def();
-        else if (strcmp(ext, ".tsv") == 0) def = get_tsv_syntax_def();
-        else if (strcmp(ext, ".xml") == 0 || strcmp(ext, ".html") == 0 || strcmp(ext, ".xhtml") == 0) def = get_xml_syntax_def();
-        else if (strcmp(ext, ".diff") == 0 || strcmp(ext, ".patch") == 0) def = get_diff_syntax_def();
-        else if (strcmp(ext, ".c") == 0 || strcmp(ext, ".h") == 0 || strcmp(ext, ".cpp") == 0 || strcmp(ext, ".hpp") == 0) def = get_c_syntax_def();
-        else if (strcmp(ext, ".log") == 0) def = get_log_syntax_def();
-        else if (strcmp(ext, ".py") == 0) def = get_py_syntax_def();
-        else if (strcmp(ext, ".js") == 0 || strcmp(ext, ".mjs") == 0 || strcmp(ext, ".cjs") == 0 ||
-                 strcmp(ext, ".ts") == 0 || strcmp(ext, ".jsx") == 0 || strcmp(ext, ".tsx") == 0) {
-            def = get_js_syntax_def();
-        }
+        def = get_syntax_def_from_ext(ext);
     }
 
     if (!def) {
