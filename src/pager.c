@@ -364,7 +364,7 @@ int some_get_gutter_width(some_state_t *state) {
 }
 
 void some_render(some_state_t *state) {
-    printf("\033[?25l\033[H"); /* hide cursor, go home */
+    printf("\033[?25l\033[0 q\033[H"); /* hide cursor, reset style, go home */
 
     int text_rows = state->term_rows - 1;
     if (text_rows < 0) text_rows = 0;
@@ -541,8 +541,8 @@ static void search_prompt(some_state_t *state, int forward) {
     int  hist_idx = state->search_history_count;
     char temp_typed[256] = {0};
 
-    /* Show cursor during input prompt */
-    printf("\033[%d;1H\033[K%c\033[?25h", state->term_rows, ch);
+    /* Show steady block (inverted) cursor during input prompt */
+    printf("\033[%d;1H\033[K%c\033[?25h\033[2 q", state->term_rows, ch);
     fflush(stdout);
 
     while (1) {
@@ -627,8 +627,8 @@ static void filter_prompt(some_state_t *state) {
     int  hist_idx = state->filter_history_count;
     char temp_typed[256] = {0};
 
-    /* Show cursor during input prompt */
-    printf("\033[%d;1H\033[K&\033[?25h", state->term_rows);
+    /* Show steady block (inverted) cursor during input prompt */
+    printf("\033[%d;1H\033[K&\033[?25h\033[2 q", state->term_rows);
     fflush(stdout);
 
     while (1) {
