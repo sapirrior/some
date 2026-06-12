@@ -930,6 +930,7 @@ static void show_info_overlay(some_state_t *state) {
 static void show_help(some_state_t *state) {
     some_state_t help_state;
     some_init_state(&help_state);
+    help_state.wrap_enabled = 0;
 
     help_state.tty_fd = state->tty_fd;
     help_state.orig_termios = state->orig_termios;
