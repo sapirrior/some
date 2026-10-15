@@ -1,0 +1,25 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/text" },
+    { "path": "./packages/buffer" },
+    { "path": "./packages/term" },
+    { "path": "./packages/layout" },
+    { "path": "./packages/grammar" },
+    { "path": "./packages/theme" },
+    { "path": "./packages/keymap" },
+    { "path": "./packages/config" },
+    { "path": "./packages/search" },
+    { "path": "./packages/vcs" },
+    { "path": "./packages/source" },
+    { "path": "./packages/transform" },
+    { "path": "./packages/transforms/json" },
+    { "path": "./packages/transforms/csv" },
+    { "path": "./packages/transforms/ndjson" },
+    { "path": "./packages/render" },
+    { "path": "./packages/ui" },
+    { "path": "./packages/pager" },
+    { "path": "./packages/cli" }
+  ]
+}

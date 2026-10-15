@@ -1,0 +1,25 @@
+{
+  "name": "some-monorepo",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Monorepo for some: a post-modern terminal pager",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "packages/transforms/*"
+  ],
+  "scripts": {
+    "check": "npm run check:ansi && npm run check:colors && npm run check:lang && npm run typecheck",
+    "check:ansi": "bun run scripts/check-no-ansi.ts",
+    "check:colors": "bun run scripts/check-no-colors.ts",
+    "check:lang": "bun run scripts/check-no-lang.ts",
+    "typecheck": "tsc --build --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.10",
+    "typescript": "^5.8.2"
+  }
+}
