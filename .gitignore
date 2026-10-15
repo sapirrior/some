@@ -15,3 +15,8 @@ src/*.o
 
 # Temporary & Log files
 *.log
+
+# Project specific
+plan.md
+node_modules/
+dist/
